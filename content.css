@@ -1,0 +1,195 @@
+/* Reply Scout panel — self-contained dark slate identity so it reads the same
+   on X light and dim themes without pretending to be part of X. */
+
+#reply-scout-panel {
+  position: fixed;
+  top: 72px;
+  right: 16px;
+  width: 340px;
+  max-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  z-index: 2147483000;
+  background: #10161c;
+  color: #e6ebef;
+  border: 1px solid #2a343d;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+#reply-scout-panel.rs-collapsed .rs-body { display: none; }
+#reply-scout-panel.rs-collapsed { max-height: none; width: 190px; }
+
+.rs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #2a343d;
+}
+#reply-scout-panel.rs-collapsed .rs-header { border-bottom: none; }
+
+.rs-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rs-header-actions { display: flex; gap: 10px; }
+
+.rs-linklike {
+  background: none;
+  border: none;
+  color: #8fa3b0;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+.rs-linklike:hover { color: #e6ebef; }
+.rs-linklike:focus-visible,
+.rs-scan:focus-visible,
+.rs-btn:focus-visible {
+  outline: 2px solid #6db3d9;
+  outline-offset: 2px;
+}
+
+.rs-body {
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+}
+
+.rs-scan {
+  width: 100%;
+  padding: 8px 0;
+  border: none;
+  border-radius: 7px;
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.rs-scan:hover { background: #2563eb; }
+.rs-scan:disabled { background: #33404b; cursor: default; }
+
+.rs-status {
+  margin: 8px 2px 4px;
+  color: #8fa3b0;
+  font-size: 12px;
+}
+.rs-status.rs-warn { color: #f0b45f; }
+.rs-status.rs-busy { color: #6db3d9; }
+.rs-status.rs-done { color: #7fd6a4; }
+
+.rs-results { margin-top: 6px; display: flex; flex-direction: column; gap: 8px; }
+
+.rs-card {
+  background: #161e26;
+  border: 1px solid #2a343d;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.rs-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rs-score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.rs-score-high { background: #12351f; color: #7fd6a4; }
+.rs-score-mid  { background: #3a2f14; color: #f0b45f; }
+.rs-score-low  { background: #33222a; color: #c48a9a; }
+
+.rs-author {
+  color: #b7c4cd;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-post-text { color: #e6ebef; }
+
+.rs-reason {
+  margin-top: 4px;
+  color: #8fa3b0;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.rs-reply {
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 8px;
+  background: #0d1319;
+  color: #e6ebef;
+  border: 1px solid #2a343d;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.rs-actions { display: flex; gap: 8px; margin-top: 7px; }
+
+.rs-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rs-btn:hover { background: #2563eb; }
+
+.rs-btn-quiet {
+  background: #222c35;
+  color: #b7c4cd;
+}
+.rs-btn-quiet:hover { background: #2c3843; color: #e6ebef; }
+
+/* Highlight when jumping to a post on the page */
+article.rs-flash {
+  outline: 2px solid #6db3d9 !important;
+  outline-offset: -2px;
+  transition: outline 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  article.rs-flash { transition: none; }
+}
+
+/* v1.2 — auto-scan toggle and hit cards */
+.rs-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: #b7c4cd;
+  font-size: 13px;
+  user-select: none;
+}
+.rs-toggle-row input[type="checkbox"] {
+  accent-color: #1d4ed8;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.rs-card-hit { border-color: #2e4a3a; }
+
+/* v1.3 — threshold filter */
+.rs-card-filtered { display: none; }

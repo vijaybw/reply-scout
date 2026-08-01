@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reply Scout — Settings</title>
+  <style>
+    :root {
+      --bg: #10161c;
+      --card: #161e26;
+      --line: #2a343d;
+      --text: #e6ebef;
+      --muted: #8fa3b0;
+      --accent: #1d4ed8;
+      --accent-hover: #2563eb;
+      --ok: #7fd6a4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 24px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; }
+    input[type="password"], input[type="text"], input[type="number"], textarea {
+      width: 100%;
+      padding: 9px 10px;
+      background: #0d1319;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 13.5px;
+    }
+    textarea { resize: vertical; min-height: 110px; }
+    textarea.tall { min-height: 170px; }
+    input:focus, textarea:focus, button:focus-visible {
+      outline: 2px solid #6db3d9;
+      outline-offset: 1px;
+    }
+    .row { display: flex; align-items: center; gap: 10px; }
+    .row input[type="number"] { width: 80px; }
+    button.save {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.save:hover { background: var(--accent-hover); }
+    #status { margin-left: 12px; color: var(--ok); font-size: 13px; }
+    .footer-note { color: var(--muted); font-size: 12.5px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Reply Scout settings</h1>
+    <p class="sub">The brain of your scanner: one key, one thesis, one rubric, one voice. Everything stays in this browser's local extension storage.</p>
+
+    <div class="card">
+      <label for="provider">Model provider</label>
+      <p class="hint">Claude API (best quality) or a local model through LM Studio (free, private, runs on your machine).</p>
+      <select id="provider" style="width:100%;padding:9px 10px;background:#0d1319;color:var(--text);border:1px solid var(--line);border-radius:7px;font-size:13.5px">
+        <option value="anthropic">Claude API (api.anthropic.com)</option>
+        <option value="local">Local — LM Studio</option>
+      </select>
+    </div>
+
+    <div class="card" id="anthropicCard">
+      <label for="apiKey">Anthropic API key</label>
+      <p class="hint">Create one at console.anthropic.com → API keys. Stored locally, sent only to api.anthropic.com.</p>
+      <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off" />
+    </div>
+
+    <div class="card" id="localCard">
+      <label for="localBaseUrl">LM Studio server URL</label>
+      <p class="hint">In LM Studio: Developer tab → Start Server. Default is http://localhost:1234/v1. Enable CORS in the server settings.</p>
+      <input type="text" id="localBaseUrl" placeholder="http://localhost:1234/v1" autocomplete="off" />
+      <div style="height:10px"></div>
+      <label for="localModel">Model name (optional)</label>
+      <p class="hint">Leave blank to use whatever model is loaded in LM Studio. Or paste the exact id shown on LM Studio's server page.</p>
+      <input type="text" id="localModel" placeholder="e.g. qwen2.5-14b-instruct" autocomplete="off" />
+    </div>
+
+    <div class="card">
+      <label for="thesis">Thesis</label>
+      <p class="hint">The one idea every reply should ultimately advance. One or two sentences.</p>
+      <textarea id="thesis"></textarea>
+    </div>
+
+    <div class="card">
+      <label for="rubric">Scoring rubric</label>
+      <p class="hint">What makes a post worth replying to. The scorer applies this to every post it sees.</p>
+      <textarea id="rubric" class="tall"></textarea>
+    </div>
+
+    <div class="card">
+      <label for="voice">Voice samples</label>
+      <p class="hint">Paste 3–8 of your best posts, replies, or Substack excerpts. Drafts are written to sound like these. Real samples beat descriptions of style.</p>
+      <textarea id="voice" class="tall" placeholder="--- Sample 1 ---&#10;(paste a post you wrote)&#10;&#10;--- Sample 2 ---&#10;..."></textarea>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label for="minScore" style="margin:0">Draft replies at score ≥</label>
+        <input type="number" id="minScore" min="1" max="10" step="0.5" />
+      </div>
+      <p class="hint" style="margin-top:6px">Posts below this get a score and a reason, but no draft. Raise it if you're getting too many mediocre suggestions.</p>
+    </div>
+
+    <div>
+      <button class="save" id="save">Save settings</button>
+      <span id="status"></span>
+    </div>
+
+    <p class="footer-note">Reply Scout never posts, likes, or follows for you. It scores and drafts; you decide.</p>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
