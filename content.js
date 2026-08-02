@@ -1,6 +1,8 @@
-// Reply Scout — content script (v1.2)
+// Reply Scout — content script (v1.5)
 // Auto-scan mode: watches the timeline as you scroll, batches new posts
 // intelligently, skips ads, and never re-scores the same post twice.
+// Only active on monitoring feeds (Home, Lists) — stays off on profile and
+// status pages, where there's nothing to scan.
 // Still copy-only: this extension never posts, likes, or follows for you.
 
 (() => {
@@ -17,11 +19,33 @@
   let adSkipCount = 0;
   let hideBelow = true;          // hide cards under the draft threshold
   let minScore = 6;              // mirrors "Draft replies at score >=" in settings
+  let onMonitoringPage = isMonitoringPage();
 
   const BATCH_MAX = 10;          // posts per request (kind to local models)
   const BATCH_TRIGGER = 5;       // flush immediately once this many are queued
   const DEBOUNCE_MS = 2500;      // otherwise flush this long after scrolling settles
   const CARD_CAP = 60;           // max result cards kept in the panel
+
+  // ---------- page gating ----------
+  // The panel only makes sense on feeds made of many posts to triage: Home
+  // and individual Lists. Profile pages and single-post (/status) pages show
+  // one person's or one post's context, not a monitoring feed.
+  function isMonitoringPage() {
+    const path = location.pathname;
+    if (path === "/home") return true;
+    if (/^\/i\/lists\/[^/]+\/?$/.test(path)) return true;
+    return false;
+  }
+
+  function updatePageGate() {
+    onMonitoringPage = isMonitoringPage();
+    panel.classList.toggle("rs-page-hidden", !onMonitoringPage);
+    if (!onMonitoringPage) {
+      clearTimeout(debounceTimer);
+    } else if (autoScan) {
+      collectNewPosts();
+    }
+  }
 
   chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6 }).then((s) => {
     autoScan = s.autoScan;
@@ -29,7 +53,7 @@
     minScore = parseFloat(s.minScore) || 6;
     updateAutoUI();
     updateFilterUI();
-    if (autoScan) collectNewPosts();
+    updatePageGate();
   });
 
   // Keep the threshold in sync if the user changes it in settings mid-session
@@ -44,13 +68,19 @@
 
   // ---------- ad / promoted detection ----------
   function isAd(article) {
+    // X wraps promoted tweets in a placementTracking cell — it's an ANCESTOR
+    // of the article, not a descendant, so check both directions in case the
+    // markup ever nests the other way.
+    if (article.closest('[data-testid="placementTracking"]')) return true;
     if (article.querySelector('[data-testid="placementTracking"]')) return true;
-    // Promoted posts carry a small "Ad" or "Promoted" label span
+    // Belt-and-suspenders: the visible "Ad"/"Promoted" label, in whichever
+    // element X currently renders it as (span text or an aria-label on the icon).
     const spans = article.querySelectorAll("span");
     for (const s of spans) {
       const t = s.textContent.trim();
       if (t === "Ad" || t === "Promoted") return true;
     }
+    if (article.querySelector('[aria-label="Ad"], [aria-label="Promoted"]')) return true;
     return false;
   }
 
@@ -94,6 +124,7 @@
   }
 
   function collectNewPosts() {
+    if (!onMonitoringPage) return 0;
     const articles = document.querySelectorAll('article[data-testid="tweet"]');
     let added = 0;
     articles.forEach((article) => {
@@ -171,6 +202,7 @@
   // ---------- panel UI ----------
   const panel = document.createElement("div");
   panel.id = "reply-scout-panel";
+  panel.classList.toggle("rs-page-hidden", !onMonitoringPage);
   panel.innerHTML = `
     <div class="rs-header">
       <span class="rs-title">Reply Scout</span>
@@ -375,19 +407,21 @@
 
   // ---------- timeline observation ----------
   const observer = new MutationObserver(() => {
-    if (!autoScan) return;
+    if (!autoScan || !onMonitoringPage) return;
     clearTimeout(observer._t);
     observer._t = setTimeout(collectNewPosts, 400); // let X finish rendering
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // X is a SPA — re-collect when the URL changes (switching lists/searches)
+  // X is a SPA — re-evaluate the page gate and re-collect when the URL
+  // changes (switching between Home, Lists, profiles, status pages, etc.)
   let lastPath = location.pathname + location.search;
   setInterval(() => {
     const now = location.pathname + location.search;
     if (now !== lastPath) {
       lastPath = now;
-      if (autoScan) setTimeout(collectNewPosts, 800);
+      updatePageGate();
+      if (autoScan && onMonitoringPage) setTimeout(collectNewPosts, 800);
     }
   }, 1000);
 })();

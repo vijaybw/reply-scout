@@ -23,6 +23,10 @@
 #reply-scout-panel.rs-collapsed .rs-body { display: none; }
 #reply-scout-panel.rs-collapsed { max-height: none; width: 190px; }
 
+/* v1.5 — only show the panel on monitoring feeds (Home, Lists), not on
+   profile or individual status pages */
+#reply-scout-panel.rs-page-hidden { display: none; }
+
 .rs-header {
   display: flex;
   align-items: center;

@@ -18,7 +18,7 @@ No X API needed — it only sees what your logged-in browser already renders.
 
 ## Daily loop (~10 minutes)
 
-1. Open one of your X **Lists** or a **saved search** (these are your monitoring feeds).
+1. Open **x.com/home** or one of your X **Lists** (these are your monitoring feeds — the panel only appears here).
 2. Scroll until a screenful of candidate posts is visible.
 3. Click **Scan visible posts**. Up to 15 posts are scored per scan.
 4. Review the results, sorted by score. For anything with a draft:
@@ -28,6 +28,8 @@ No X API needed — it only sees what your logged-in browser already renders.
 
 ## Notes
 
+- **Where it's active:** the panel only appears on `x.com/home` and individual List timelines (`x.com/i/lists/...`). It stays off on profile pages, single-post (`/status/...`) pages, search, and everywhere else — those aren't monitoring feeds.
+- **Ads:** promoted posts are detected and skipped before they're ever sent for scoring.
 - **Cost:** each scan is one small API call — typically a fraction of a cent. A heavy daily habit costs a few dollars a month.
 - **Model:** uses `claude-sonnet-4-6`. You can change the `MODEL` constant in `background.js`.
 - **Privacy:** your key and settings live in Chrome's local extension storage. Post text is sent only to api.anthropic.com for scoring.
