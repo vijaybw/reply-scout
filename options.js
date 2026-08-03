@@ -15,7 +15,7 @@ Automatic low scores (0-3): rage-bait and drama; anything where a reply would lo
 const DEFAULT_VOICE = ``;
 
 const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore"];
-const CHECKBOX_FIELDS = ["processImages"];
+const CHECKBOX_FIELDS = ["processImages", "warnLayoutChange"];
 
 function toggleProviderCards() {
   const provider = document.getElementById("provider").value;
@@ -35,6 +35,7 @@ async function load() {
     voice: DEFAULT_VOICE,
     minScore: 6,
     processImages: false,
+    warnLayoutChange: true,
   });
   for (const f of FIELDS) {
     document.getElementById(f).value = stored[f];

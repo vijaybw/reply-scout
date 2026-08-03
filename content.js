@@ -21,11 +21,14 @@
   let hideBelow = true;          // hide cards under the draft threshold
   let minScore = 6;              // mirrors "Draft replies at score >=" in settings
   let onMonitoringPage = isMonitoringPage();
+  let warnLayoutChange = true;   // surface a warning if X's markup seems to have changed
+  let emptyScanStreak = 0;       // consecutive scans finding zero tweet articles at all
 
   const BATCH_MAX = 10;          // posts per request (kind to local models)
   const BATCH_TRIGGER = 5;       // flush immediately once this many are queued
   const DEBOUNCE_MS = 2500;      // otherwise flush this long after scrolling settles
   const CARD_CAP = 60;           // max result cards kept in the panel
+  const EMPTY_SCAN_STREAK_THRESHOLD = 3; // consecutive zero-article scans before warning
 
   // ---------- page gating ----------
   // The panel only makes sense on feeds made of many posts to triage: Home
@@ -48,22 +51,27 @@
     }
   }
 
-  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6 }).then((s) => {
+  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true }).then((s) => {
     autoScan = s.autoScan;
     hideBelow = s.hideBelow;
     minScore = parseFloat(s.minScore) || 6;
+    warnLayoutChange = s.warnLayoutChange;
     updateAutoUI();
     updateFilterUI();
     updatePageGate();
   });
 
-  // Keep the threshold in sync if the user changes it in settings mid-session
+  // Keep settings in sync if the user changes them mid-session
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.minScore) {
       minScore = parseFloat(changes.minScore.newValue) || 6;
       updateFilterUI();
       applyFilter();
+    }
+    if (changes.warnLayoutChange) {
+      warnLayoutChange = changes.warnLayoutChange.newValue;
+      updateStatusIdle();
     }
   });
 
@@ -165,6 +173,10 @@
   function collectNewPosts() {
     if (!onMonitoringPage) return 0;
     const articles = document.querySelectorAll('article[data-testid="tweet"]');
+    // Zero tweet articles found on a page we know should have them is the
+    // signature of X renaming its internal markup — track it as a streak so
+    // one transient empty moment (mid-render, mid-navigation) doesn't false-alarm.
+    emptyScanStreak = articles.length === 0 ? emptyScanStreak + 1 : 0;
     let added = 0;
     articles.forEach((article) => {
       if (article.dataset.replyScoutSeen) return;
@@ -324,6 +336,13 @@
 
   scanBtn.addEventListener("click", () => {
     const added = collectNewPosts();
+    if (warnLayoutChange && emptyScanStreak >= EMPTY_SCAN_STREAK_THRESHOLD) {
+      setStatus(
+        `Found 0 posts on screen — X's layout may have changed. Everything still works as before; the selectors in content.js may just need updating.`,
+        "warn"
+      );
+      return;
+    }
     if (pending.size === 0 && added === 0) {
       setStatus("No new posts on screen — everything visible is already scored or an ad.", "warn");
       return;
@@ -351,6 +370,16 @@
     if (inFlight) {
       const q = pending.size > 0 ? ` · ${pending.size} more queued` : "";
       setStatus(`Scoring…${q}`, "busy");
+      return;
+    }
+    // Diagnostic only — nothing about scanning, ad-detection, or hiding
+    // behavior changes here. This just tells you something might be off
+    // instead of leaving you wondering why nothing's showing up.
+    if (warnLayoutChange && autoScan && emptyScanStreak >= EMPTY_SCAN_STREAK_THRESHOLD) {
+      setStatus(
+        `No posts detected across ${emptyScanStreak} scans — X's layout may have changed. Everything still works as before; the selectors in content.js may just need updating.`,
+        "warn"
+      );
       return;
     }
     const seenTotal = scoredCount + pending.size;

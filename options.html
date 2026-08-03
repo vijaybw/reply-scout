@@ -136,6 +136,14 @@
       <p class="hint" style="margin-top:6px">Sends each post's own photo or video thumbnail to the model along with its text. Off by default — images add cost and latency to every scan. With Local (LM Studio), only works if the loaded model actually supports vision (e.g. Qwen2-VL, LLaVA); a text-only model will error or ignore images.</p>
     </div>
 
+    <div class="card">
+      <label class="row" style="cursor:pointer">
+        <input type="checkbox" id="warnLayoutChange" style="width:auto" />
+        <span style="margin:0">Warn if X's layout seems to have changed</span>
+      </label>
+      <p class="hint" style="margin-top:6px">Post-detection depends on X's internal page structure, which can change without notice. When on (recommended), the panel shows a warning if scans keep finding zero posts instead of silently doing nothing — nothing else about how the extension behaves changes.</p>
+    </div>
+
     <div>
       <button class="save" id="save">Save settings</button>
       <span id="status"></span>

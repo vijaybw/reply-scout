@@ -39,7 +39,7 @@ No X API needed — it only sees what your logged-in browser already renders.
 - **Cost:** each scan is one small API call — typically a fraction of a cent with images off. Turning images on adds noticeably more per scan, though the gating above keeps that bounded.
 - **Model:** uses `claude-sonnet-4-6`. You can change the `MODEL` constant in `background.js`.
 - **Privacy:** your key and settings live in Chrome's local extension storage. Post text (and, if enabled, post images) is sent only to api.anthropic.com, or to your own local LM Studio server, for scoring.
-- **X DOM changes:** X occasionally renames its internal markup. If scanning suddenly finds nothing, the selectors in `content.js` (`article[data-testid="tweet"]`, `[data-testid="tweetText"]`, `[data-testid="User-Name"]`) may need updating.
+- **X DOM changes:** X occasionally renames its internal markup. If scanning suddenly finds nothing, the selectors in `content.js` (`article[data-testid="tweet"]`, `[data-testid="tweetText"]`, `[data-testid="User-Name"]`) may need updating. With **Warn if X's layout seems to have changed** on (default), the panel surfaces this itself — if a scan on Home or a List keeps finding zero posts, it shows a warning instead of silently doing nothing. This is diagnostic only: nothing about scanning, ad-detection, or scoring behavior changes when it fires.
 - **Stay hand-on-the-wheel:** the copy-only design is deliberate. Automated posting from a session is against X's rules and would undercut the whole point — replies only work when they're genuinely yours.
 
 ## Files
