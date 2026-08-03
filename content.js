@@ -17,6 +17,7 @@
   let debounceTimer = null;
   let scoredCount = 0;
   let adSkipCount = 0;
+  let imagePostCount = 0;        // posts seen this session that had at least one photo/video
   let hideBelow = true;          // hide cards under the draft threshold
   let minScore = 6;              // mirrors "Draft replies at score >=" in settings
   let onMonitoringPage = isMonitoringPage();
@@ -89,6 +90,42 @@
     return p.url || p.handle + "::" + p.text.slice(0, 80);
   }
 
+  const IMAGE_CAP = 2; // per post — bounds request size/cost
+
+  // Filters out the generic "Image" placeholder X sometimes sets when no
+  // real alt text was provided, so we don't treat it as genuine content.
+  function cleanAlt(raw) {
+    const t = (raw || "").trim();
+    if (!t || /^image$/i.test(t)) return "";
+    return t;
+  }
+
+  // Only the post's own attached media — not the quoted-tweet's nested
+  // article, not link-preview card thumbnails, not avatars or emoji.
+  // Sizing/rendition selection happens in background.js at fetch time, since
+  // that's where the rest of the provider-specific request shaping lives.
+  // `kind` lets background.js skip video poster frames when deciding what's
+  // worth an OCR/vision call — a paused mid-video frame is a weaker, often
+  // misleading signal compared to a deliberately posted photo.
+  function extractImages(article) {
+    const images = [];
+    const photoEls = article.querySelectorAll('[data-testid="tweetPhoto"] img');
+    for (const img of photoEls) {
+      if (images.length >= IMAGE_CAP) break;
+      // Quote-tweets render as a nested <article>; closest("article") walks
+      // up to that nested one instead of ours, so we can tell them apart.
+      if (img.closest("article") !== article) continue;
+      if (img.src) images.push({ url: img.src, alt: cleanAlt(img.alt), kind: "photo" });
+    }
+    if (images.length < IMAGE_CAP) {
+      const video = article.querySelector('[data-testid="videoPlayer"] video[poster]');
+      if (video && video.poster && video.closest("article") === article) {
+        images.push({ url: video.poster, alt: "", kind: "video" });
+      }
+    }
+    return images.slice(0, IMAGE_CAP);
+  }
+
   function extractArticle(article) {
     const textEl = article.querySelector('[data-testid="tweetText"]');
     const text = textEl ? textEl.innerText.trim() : "";
@@ -120,7 +157,9 @@
       if (btn.dataset.testid === "like") engagement.likes = num;
     });
 
-    return { author, handle, text: text.slice(0, 1000), url, engagement, _article: article };
+    const images = extractImages(article);
+
+    return { author, handle, text: text.slice(0, 1000), url, engagement, images, _article: article };
   }
 
   function collectNewPosts() {
@@ -141,6 +180,7 @@
       p.id = "rs-" + Math.random().toString(36).slice(2, 10);
       article.dataset.replyScoutId = p.id;
       article.dataset.replyScoutSeen = "1";
+      if (p.images && p.images.length > 0) imagePostCount++;
       pending.set(key, p);
       added++;
     });
@@ -304,13 +344,24 @@
   }
 
   function updateStatusIdle() {
-    if (inFlight) return;
+    // Keep the queue count live even mid-flight — local models can take
+    // 20-45s+ per batch, and posts keep piling up in `pending` as you
+    // scroll during that wait. Bailing out here used to freeze the display
+    // until the next flush snapshotted whatever pending had ballooned to.
+    if (inFlight) {
+      const q = pending.size > 0 ? ` · ${pending.size} more queued` : "";
+      setStatus(`Scoring…${q}`, "busy");
+      return;
+    }
+    const seenTotal = scoredCount + pending.size;
+    const imgPct = seenTotal > 0 ? Math.round((imagePostCount / seenTotal) * 100) : 0;
+    const images = imagePostCount > 0 ? ` · ${imagePostCount} had images (${imgPct}%)` : "";
     if (autoScan) {
       const q = pending.size > 0 ? ` · ${pending.size} queued` : "";
       const ads = adSkipCount > 0 ? ` · ${adSkipCount} ads skipped` : "";
-      setStatus(`Watching as you scroll · ${scoredCount} scored${q}${ads}`, "done");
+      setStatus(`Watching as you scroll · ${scoredCount} scored${q}${ads}${images}`, "done");
     } else if (scoredCount > 0) {
-      setStatus(`${scoredCount} scored this session. Scan again for new posts.`, "done");
+      setStatus(`${scoredCount} scored this session${images}. Scan again for new posts.`, "done");
     }
   }
 

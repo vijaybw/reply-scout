@@ -14,7 +14,8 @@ Automatic low scores (0-3): rage-bait and drama; anything where a reply would lo
 
 const DEFAULT_VOICE = ``;
 
-const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "thesis", "rubric", "voice", "minScore"];
+const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore"];
+const CHECKBOX_FIELDS = ["processImages"];
 
 function toggleProviderCards() {
   const provider = document.getElementById("provider").value;
@@ -28,13 +29,18 @@ async function load() {
     apiKey: "",
     localBaseUrl: "http://localhost:1234/v1",
     localModel: "",
+    localOcrModel: "",
     thesis: DEFAULT_THESIS,
     rubric: DEFAULT_RUBRIC,
     voice: DEFAULT_VOICE,
     minScore: 6,
+    processImages: false,
   });
   for (const f of FIELDS) {
     document.getElementById(f).value = stored[f];
+  }
+  for (const f of CHECKBOX_FIELDS) {
+    document.getElementById(f).checked = stored[f];
   }
   toggleProviderCards();
 }
@@ -43,6 +49,9 @@ async function save() {
   const data = {};
   for (const f of FIELDS) {
     data[f] = document.getElementById(f).value;
+  }
+  for (const f of CHECKBOX_FIELDS) {
+    data[f] = document.getElementById(f).checked;
   }
   data.minScore = parseFloat(data.minScore) || 6;
   await chrome.storage.local.set(data);

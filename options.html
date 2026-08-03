@@ -96,6 +96,10 @@
       <label for="localModel">Model name (optional)</label>
       <p class="hint">Leave blank to use whatever model is loaded in LM Studio. Or paste the exact id shown on LM Studio's server page.</p>
       <input type="text" id="localModel" placeholder="e.g. qwen2.5-14b-instruct" autocomplete="off" />
+      <div style="height:10px"></div>
+      <label for="localOcrModel">OCR model for images (optional)</label>
+      <p class="hint">Only used when "Include images when scoring" is on. If set, images are read locally by this vision model first, and the extracted text is merged into the post before scoring — your main model above never needs vision support. Leave blank to send images to the main model directly instead (it must support vision itself). A small general vision model like <code>lmstudio-community/Qwen2-VL-2B-Instruct-GGUF</code> is a light, RAM-friendly choice that handles both text-in-image and photos/memes; <code>allenai/olmOCR-2-7B-1025</code> is a heavier, document-OCR-specialized alternative (gets a different, more structured prompt automatically since its id contains "olmocr").</p>
+      <input type="text" id="localOcrModel" placeholder="e.g. lmstudio-community/Qwen2-VL-2B-Instruct-GGUF" autocomplete="off" />
     </div>
 
     <div class="card">
@@ -122,6 +126,14 @@
         <input type="number" id="minScore" min="1" max="10" step="0.5" />
       </div>
       <p class="hint" style="margin-top:6px">Posts below this get a score and a reason, but no draft. Raise it if you're getting too many mediocre suggestions.</p>
+    </div>
+
+    <div class="card">
+      <label class="row" style="cursor:pointer">
+        <input type="checkbox" id="processImages" style="width:auto" />
+        <span style="margin:0">Include images when scoring</span>
+      </label>
+      <p class="hint" style="margin-top:6px">Sends each post's own photo or video thumbnail to the model along with its text. Off by default — images add cost and latency to every scan. With Local (LM Studio), only works if the loaded model actually supports vision (e.g. Qwen2-VL, LLaVA); a text-only model will error or ignore images.</p>
     </div>
 
     <div>

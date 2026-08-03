@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Reply Scout",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Scans the X posts you're viewing, scores them against your thesis and rubric, and drafts replies in your voice. You review and post by hand.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://api.anthropic.com/*",
+    "https://pbs.twimg.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
