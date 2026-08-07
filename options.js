@@ -14,7 +14,15 @@ Automatic low scores (0-3): rage-bait and drama; anything where a reply would lo
 
 const DEFAULT_VOICE = ``;
 
-const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore"];
+const DEFAULT_DIGEST_FOCUS = `I'm a software engineering leader. Surface professionally-relevant content only:
+- Unusual traction on software engineering / AI / tech topics from people I follow
+- Conversations or debates relevant to software engineering
+- Anything competitors or notable accounts announced
+
+Skip general-interest content — jokes, life advice, unrelated science/culture stories — even if it's getting a lot of engagement from people you follow, unless it's genuinely tech/SWE relevant.
+Skip engagement-bait, giveaways, and anything that's just farming replies or quote-tweets.`;
+
+const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore", "digestFocus"];
 const CHECKBOX_FIELDS = ["processImages", "warnLayoutChange"];
 
 function toggleProviderCards() {
@@ -36,6 +44,7 @@ async function load() {
     minScore: 6,
     processImages: false,
     warnLayoutChange: true,
+    digestFocus: DEFAULT_DIGEST_FOCUS,
   });
   for (const f of FIELDS) {
     document.getElementById(f).value = stored[f];
@@ -44,6 +53,18 @@ async function load() {
     document.getElementById(f).checked = stored[f];
   }
   toggleProviderCards();
+  loadDraftStats();
+}
+
+async function loadDraftStats() {
+  const s = await chrome.storage.local.get({ draftedCount: 0, copiedCount: 0 });
+  const el = document.getElementById("draftStats");
+  if (s.draftedCount === 0) {
+    el.textContent = "No drafts yet — this fills in as you use Reply Scout.";
+    return;
+  }
+  const pct = Math.round((s.copiedCount / s.draftedCount) * 100);
+  el.textContent = `${s.copiedCount} of ${s.draftedCount} drafted replies copied (${pct}%) — a rough signal of how well-calibrated your rubric is.`;
 }
 
 async function save() {

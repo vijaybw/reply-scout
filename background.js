@@ -7,6 +7,23 @@ const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const ANTHROPIC_TIMEOUT_MS = 60_000;   // Claude API — generous, but a hung request shouldn't block the queue forever
+const LOCAL_TIMEOUT_MS = 180_000;      // local reasoning models legitimately take 20-45s+; this only catches a truly stuck one
+const IMAGE_FETCH_TIMEOUT_MS = 30_000; // just downloading from a CDN, not running inference
+
+// Without this, a single hung request — network stall, a wedged local
+// server — blocks the entire global single-flight queue indefinitely, with
+// no recovery but reloading the extension.
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // GLOBAL single-flight queue. Content scripts serialize per-tab, but every
 // x.com tab runs its own scanner — without this, two tabs fire concurrent
 // requests and local MLX engines can OOM-crash. All scoring, from all tabs,
@@ -18,12 +35,64 @@ function enqueue(task) {
   return run;
 }
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+// MV3 service workers can be suspended by Chrome after a period of
+// perceived inactivity — even mid-request, in practice, on long-running
+// local-model calls (observed as "Client disconnected" in LM Studio's own
+// logs, aborting generation part-way through). An open Port counts as
+// active use and keeps the worker alive for its lifetime; content.js opens
+// one right before a long call and closes it once the response lands.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === "keepalive") {
+    // Just having the port open isn't reliably enough to stop Chrome from
+    // treating this worker as idle mid-fetch — observed in practice as
+    // "Client disconnected" in LM Studio's logs at a suspiciously
+    // consistent ~15-25s mark, well under any of our own timeouts. Actually
+    // receiving a message over the port is unambiguous activity, so
+    // content.js pings it periodically while a request is in flight.
+    port.onMessage.addListener(() => {});
+    port.onDisconnect.addListener(() => {});
+  }
+});
+
+// Pushes the eventual result back as its own message, correlated by
+// requestId, instead of relying on the original sendResponse callback.
+// Chrome's message channel for a single sendMessage/onMessage exchange has
+// its own lifetime independent of the service worker process itself — a
+// multi-batch digest can legitimately run for several minutes, longer than
+// that exchange is built to last ("message channel closed before a response
+// was received").
+//
+// Targeted at the specific tab that sent the request (chrome.tabs.sendMessage)
+// rather than broadcast via chrome.runtime.sendMessage — evidence from real
+// use showed the underlying work completing successfully in the background
+// while the broadcast result silently never reached the panel, leaving it
+// stuck despite nothing actually being wrong with the scoring/digest itself.
+// Falls back to a broadcast only if we somehow don't have a tab id.
+function pushToTab(tabId, message) {
+  if (tabId != null) {
+    chrome.tabs.sendMessage(tabId, message).catch(() => {});
+  } else {
+    chrome.runtime.sendMessage(message).catch(() => {});
+  }
+}
+
+function pushResult(tabId, type, requestId, payload) {
+  pushToTab(tabId, { type, requestId, ...payload });
+}
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  const tabId = sender?.tab?.id;
   if (msg.type === "SCORE_POSTS") {
     enqueue(() => scorePosts(msg.posts))
-      .then((results) => sendResponse({ ok: true, results }))
-      .catch((err) => sendResponse({ ok: false, error: String(err.message || err) }));
-    return true; // keep the message channel open for the async response
+      .then((results) => pushResult(tabId, "SCORE_RESULT", msg.requestId, { ok: true, results }))
+      .catch((err) => pushResult(tabId, "SCORE_RESULT", msg.requestId, { ok: false, error: String(err.message || err) }));
+    return;
+  }
+  if (msg.type === "GENERATE_DIGEST") {
+    enqueue(() => generateDigest(msg.posts, msg.requestId, tabId))
+      .then((digest) => pushResult(tabId, "DIGEST_RESULT", msg.requestId, { ok: true, digest }))
+      .catch((err) => pushResult(tabId, "DIGEST_RESULT", msg.requestId, { ok: false, error: String(err.message || err) }));
+    return;
   }
   if (msg.type === "OPEN_OPTIONS") {
     chrome.runtime.openOptionsPage();
@@ -44,6 +113,7 @@ async function getSettings() {
     minScore: 6,
     processImages: false,            // send each post's own photo/video thumbnail along with its text
     localOcrModel: "",               // optional: OCR-specialized local model id, used instead of vision on the main model
+    digestFocus: "",                 // what the "Generate digest" button should surface/skip
   };
   return chrome.storage.local.get(defaults);
 }
@@ -128,7 +198,7 @@ function withImageSize(url, sizeName) {
 // Chunked to avoid blowing the call stack on String.fromCharCode(...bytes)
 // for larger images.
 async function fetchImageAsBase64(url, sizeName) {
-  const res = await fetch(withImageSize(url, sizeName));
+  const res = await fetchWithTimeout(withImageSize(url, sizeName), {}, IMAGE_FETCH_TIMEOUT_MS);
   if (!res.ok) throw new Error(`Image fetch failed (${res.status})`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   let binary = "";
@@ -209,6 +279,18 @@ function extractOcrText(raw) {
   return stripped || raw.trim();
 }
 
+// Small vision models sometimes default to a "grounding" behavior — bare
+// bounding-box coordinates — instead of following a plain-language
+// instruction (observed in practice: "(21,9),(984,983)"). That's not a
+// description or transcription, so it shouldn't get folded into a post.
+function looksLikeGarbageOcr(text) {
+  const t = text.trim();
+  if (!t) return true;
+  if (/^(\(\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*\)\s*,?\s*)+$/.test(t)) return true; // coordinate-only output
+  if (!/[a-zA-Z]{3,}/.test(t)) return true; // no real words at all
+  return false;
+}
+
 // Transcribes one image with a dedicated local OCR/vision model, kept
 // entirely separate from the main scoring model — the scoring model never
 // needs vision support in this path.
@@ -219,7 +301,8 @@ async function ocrImage(s, url) {
     { type: "text", text: ocrPromptFor(s.localOcrModel) },
   ];
   const raw = await callLocal(s, "", content, s.localOcrModel);
-  return extractOcrText(raw);
+  const text = extractOcrText(raw);
+  return looksLikeGarbageOcr(text) ? "" : text;
 }
 
 function imageBlock(img, format) {
@@ -253,21 +336,33 @@ async function callAnthropic(s, systemPrompt, userContent) {
   if (!s.apiKey) {
     throw new Error("No API key set. Open settings and paste your Anthropic API key, or switch provider to Local (LM Studio).");
   }
-  const res = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": s.apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userContent }],
-    }),
-  });
+  let res;
+  try {
+    res = await fetchWithTimeout(
+      ANTHROPIC_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": s.apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userContent }],
+        }),
+      },
+      ANTHROPIC_TIMEOUT_MS
+    );
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error(`Anthropic request timed out after ${ANTHROPIC_TIMEOUT_MS / 1000}s. Try again.`);
+    }
+    throw e;
+  }
   if (!res.ok) {
     let detail = "";
     try { detail = (await res.json())?.error?.message || ""; } catch (_) {}
@@ -285,46 +380,61 @@ async function callAnthropic(s, systemPrompt, userContent) {
 // LM Studio's message for a non-vision model handed image content — not a
 // crash, so retrying after a reload delay would just fail the same way again.
 const NO_VISION_SUPPORT = /does not support image/i;
+// Already waited the full LOCAL_TIMEOUT_MS once — that's generous enough
+// that a repeat is more likely stuck than transient. Fail fast instead of
+// doubling the wait to 6+ minutes.
+const LOCAL_TIMED_OUT = /didn't respond within/i;
 
-async function callLocal(s, systemPrompt, userContent, modelOverride) {
+async function callLocal(s, systemPrompt, userContent, modelOverride, maxTokens) {
   // One retry with backoff: after a crash, LM Studio's JIT loader needs a few
   // seconds to bring the model back before the retry can succeed.
   try {
-    return await callLocalOnce(s, systemPrompt, userContent, modelOverride);
+    return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens);
   } catch (firstErr) {
-    if (NO_VISION_SUPPORT.test(String(firstErr.message || firstErr))) {
+    const firstMsg = String(firstErr.message || firstErr);
+    if (NO_VISION_SUPPORT.test(firstMsg)) {
       throw new Error(
-        String(firstErr.message || firstErr) +
+        firstMsg +
         ' — turn off "Include images when scoring" in settings, or load a vision-capable model (e.g. Qwen2-VL, LLaVA) in LM Studio.'
       );
     }
+    if (LOCAL_TIMED_OUT.test(firstMsg)) {
+      throw firstErr;
+    }
     await sleep(6000);
     try {
-      return await callLocalOnce(s, systemPrompt, userContent, modelOverride);
+      return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens);
     } catch (secondErr) {
       throw new Error(String(secondErr.message || secondErr) + " (retried once after 6s)");
     }
   }
 }
 
-async function callLocalOnce(s, systemPrompt, userContent, modelOverride) {
+async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens) {
   const base = (s.localBaseUrl || "http://localhost:1234/v1").replace(/\/+$/, "");
   let res;
   try {
-    res = await fetch(base + "/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: modelOverride || s.localModel || "local-model",
-        temperature: 0.4,
-        max_tokens: 2000,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-      }),
-    });
+    res = await fetchWithTimeout(
+      base + "/chat/completions",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: modelOverride || s.localModel || "local-model",
+          temperature: 0.4,
+          max_tokens: maxTokens || 2000,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+        }),
+      },
+      LOCAL_TIMEOUT_MS
+    );
   } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error(`LM Studio didn't respond within ${LOCAL_TIMEOUT_MS / 1000}s — it may be stuck. Check LM Studio, or try a smaller batch.`);
+    }
     throw new Error(
       "Could not reach LM Studio at " + base +
       ". Is the server running? In LM Studio: Developer tab → Start Server (port 1234) and enable CORS."
@@ -414,4 +524,218 @@ async function scorePosts(posts) {
     ? await callLocal(s, systemPrompt, userContent)
     : await callAnthropic(s, systemPrompt, userContent);
   return parseResults(text);
+}
+
+// ---------- digest ----------
+// A separate, on-demand "what actually matters" summary — distinct from the
+// per-post reply-scoring rubric above. Triggered only by a manual button
+// click (never automatically), text-only (no image handling), one request
+// per click rather than the batched auto-scan pipeline.
+
+const DIGEST_HISTORY_KEY = "digestHistory";
+const DIGEST_HISTORY_DAYS = 3;   // "skip what I already saw" window, a little past a calendar day for weekend gaps
+const DIGEST_BATCH_SIZE = 25;    // stage-1 chunk size — keeps each triage call a reasonable size for local models
+
+function buildDigestSystemPrompt(s) {
+  return [
+    "You build a short morning digest from a social media feed, for someone who wants to spend a few minutes reading instead of scrolling.",
+    "",
+    "== WHAT TO SURFACE (in their own words) ==",
+    s.digestFocus || "(No digest focus set. Default: unusual engagement, notable industry debates, and anything a competitor or well-known account announced.)",
+    "",
+    "== HARD RULES ==",
+    "- Pick at most 8 items, fewer if fewer genuinely qualify. Never pad with filler just to hit a count.",
+    "- Skip engagement-bait, giveaways, and anything that's just farming replies or quote-tweets.",
+    "- Never invent a url — only use urls that appear in the input.",
+    "- Two-line summary: what the post actually says, specific, not vague hype.",
+    "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
+    "",
+    "== OUTPUT ==",
+    "Respond with ONLY a JSON object, no prose, no markdown fences:",
+    '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "suggestion": "<one reply or post idea for today, grounded in what\'s in this digest>"}',
+    "If nothing in the input genuinely qualifies, return an empty items array and a brief suggestion noting that nothing stood out.",
+  ].join("\n");
+}
+
+function buildDigestUserContent(posts) {
+  return (
+    "Here are posts collected from my feed. Build the digest from these.\n\n" +
+    JSON.stringify(
+      posts.map((p) => ({
+        url: p.url,
+        author: p.author,
+        handle: p.handle,
+        text: p.text,
+        engagement: p.engagement,
+      })),
+      null,
+      2
+    )
+  );
+}
+
+// Stage-1 (map) prompt for batches larger than DIGEST_BATCH_SIZE — a cheap
+// triage pass, not the full digest format, so each chunk stays fast. Only
+// the url matters downstream; "reason" is scratch space for the model, not
+// surfaced to the user.
+function buildShortlistSystemPrompt(s) {
+  return [
+    "You are triaging a batch of social media posts for a later digest step — don't write the digest yet, just shortlist candidates.",
+    "",
+    "== WHAT THE DIGEST WILL LOOK FOR (in their own words) ==",
+    s.digestFocus || "(No digest focus set. Default: unusual engagement, notable industry debates, and anything a competitor or well-known account announced.)",
+    "",
+    "== TASK ==",
+    "From the posts below, pick up to 5 that are plausibly worth including in a digest based on the focus above. Skip engagement-bait, giveaways, and reply/quote-tweet farming outright.",
+    "",
+    "== OUTPUT ==",
+    "Respond with ONLY a JSON array, no prose, no markdown fences:",
+    '[{"url": "<url from input>", "reason": "<short phrase, for internal use only>"}]',
+    "If nothing in this batch qualifies, return an empty array.",
+  ].join("\n");
+}
+
+function parseShortlistResult(text) {
+  const clean = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/```json|```/g, "")
+    .trim();
+  try {
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed)) return parsed.filter((i) => i && i.url);
+  } catch (_) {}
+  const match = clean.match(/\[[\s\S]*\]/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed.filter((i) => i && i.url);
+    } catch (_) {}
+  }
+  return []; // a malformed shortlist batch just contributes nothing, not a hard failure
+}
+
+function parseDigestResult(text) {
+  const clean = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/```json|```/g, "")
+    .trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch (_) {
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { parsed = JSON.parse(match[0]); } catch (_) {}
+    }
+  }
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Could not parse the model's digest response as JSON. Try again, or a stronger model.");
+  }
+  const items = Array.isArray(parsed.items) ? parsed.items.filter((i) => i && i.url) : [];
+  const suggestion = typeof parsed.suggestion === "string" ? parsed.suggestion : "";
+  return { items, suggestion };
+}
+
+// Loads the "already digested" url -> timestamp map, dropping anything older
+// than DIGEST_HISTORY_DAYS so it doesn't grow forever or exclude things
+// you'd reasonably want to see again after a few days.
+async function loadPrunedDigestHistory() {
+  const stored = await chrome.storage.local.get({ [DIGEST_HISTORY_KEY]: {} });
+  const history = stored[DIGEST_HISTORY_KEY] || {};
+  const cutoff = Date.now() - DIGEST_HISTORY_DAYS * 24 * 60 * 60 * 1000;
+  const pruned = {};
+  for (const [url, ts] of Object.entries(history)) {
+    if (ts >= cutoff) pruned[url] = ts;
+  }
+  return pruned;
+}
+
+// Fire-and-forget progress ping to the content script so a multi-batch
+// digest (which can take minutes on a local model) shows live progress
+// instead of a frozen button — and, just as importantly, doubles as a
+// heartbeat: content.js resets its own dead-worker timeout on every ping
+// carrying this requestId, so if this service worker ever dies mid-digest
+// (an MV3 risk even with the keepalive Port), the silence itself is what
+// gets detected, instead of the UI hanging until a long last-resort timeout.
+function reportDigestProgress(tabId, requestId, done, total) {
+  pushToTab(tabId, { type: "DIGEST_PROGRESS", requestId, done, total });
+}
+
+async function shortlistChunk(s, chunk) {
+  const systemPrompt = buildShortlistSystemPrompt(s);
+  const userContent = buildDigestUserContent(chunk);
+  const text = s.provider === "local"
+    ? await callLocal(s, systemPrompt, userContent)
+    : await callAnthropic(s, systemPrompt, userContent);
+  return parseShortlistResult(text);
+}
+
+async function generateDigest(posts, requestId, tabId) {
+  const s = await getSettings();
+  if (!posts || posts.length === 0) {
+    throw new Error("No posts found on screen. Scroll your feed for a bit first, then generate the digest.");
+  }
+
+  // Filtering already-seen posts out of the input (rather than just asking
+  // the model nicely) guarantees no repeats and saves tokens either way.
+  const history = await loadPrunedDigestHistory();
+  const fresh = posts.filter((p) => p.url && !history[p.url]);
+  if (fresh.length === 0) {
+    return {
+      items: [],
+      suggestion: "Nothing new since your last digest — everything currently on screen was already surfaced recently.",
+    };
+  }
+
+  // Small pools skip straight to the full digest pass. Larger pools (this is
+  // the point of scanning 100+ posts) go through a cheap map/reduce: shortlist
+  // each chunk independently first, then run the full digest format only over
+  // the merged, much smaller candidate set. Keeps every individual model call
+  // a sane size instead of one huge request.
+  let candidates = fresh;
+  if (fresh.length > DIGEST_BATCH_SIZE) {
+    const chunks = [];
+    for (let i = 0; i < fresh.length; i += DIGEST_BATCH_SIZE) {
+      chunks.push(fresh.slice(i, i + DIGEST_BATCH_SIZE));
+    }
+    const byUrl = new Map(fresh.map((p) => [p.url, p]));
+    const shortlisted = new Map();
+    for (let i = 0; i < chunks.length; i++) {
+      reportDigestProgress(tabId, requestId, i, chunks.length + 1); // +1 for the final reduce pass
+      try {
+        const picks = await shortlistChunk(s, chunks[i]);
+        for (const pick of picks) {
+          const post = byUrl.get(pick.url);
+          if (post) shortlisted.set(pick.url, post);
+        }
+      } catch (_) {
+        // one bad batch just contributes nothing — don't fail the whole digest over it
+      }
+    }
+    candidates = Array.from(shortlisted.values());
+    reportDigestProgress(tabId, requestId, chunks.length, chunks.length + 1);
+    if (candidates.length === 0) {
+      return { items: [], suggestion: "Nothing stood out across the posts scanned." };
+    }
+  }
+
+  const systemPrompt = buildDigestSystemPrompt(s);
+  const userContent = buildDigestUserContent(candidates);
+  // Formatting up to 8 items (url + summary + whyCare each, plus a closing
+  // suggestion) genuinely needs more room than the 2000-token default used
+  // for compact per-post scoring JSON — observed truncating mid-response
+  // (finish_reason "length") on real digests, which then fails to parse.
+  const DIGEST_MAX_TOKENS = 3500;
+  const text = s.provider === "local"
+    ? await callLocal(s, systemPrompt, userContent, undefined, DIGEST_MAX_TOKENS)
+    : await callAnthropic(s, systemPrompt, userContent);
+  const digest = parseDigestResult(text);
+
+  const now = Date.now();
+  for (const item of digest.items) {
+    if (item.url) history[item.url] = now;
+  }
+  await chrome.storage.local.set({ [DIGEST_HISTORY_KEY]: history });
+
+  return digest;
 }

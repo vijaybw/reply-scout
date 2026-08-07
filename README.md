@@ -26,6 +26,23 @@ No X API needed — it only sees what your logged-in browser already renders.
    - **Copy reply**, then **Open post** (or **Find on page**), and paste + post by hand.
 5. Scroll further or switch feeds and scan again.
 
+## Morning digest (optional)
+
+A separate, one-click feature answering a different question than reply-scoring: not "should I reply to this," but "what's actually worth reading right now."
+
+1. Open `x.com/home` or a List.
+2. Click **Generate digest** in the panel. The page scrolls itself, loading posts at a human-like pace, until it's collected ~120 or the feed runs out.
+3. Once enough posts are in, get up to 8 items — link, two-line summary, why it matters — plus one suggested reply or post idea for today.
+
+Configure what it looks for in settings → **Digest focus** (prefilled with a software-engineering-leader framing; edit it to match your own role and interests — it's your words, not a fixed rubric).
+
+- **Manual only, never automatic.** It only starts when you click the button, and it only scrolls *your own already-open, logged-in tab* while you're there watching — no unattended scheduling, no stored credentials, no background scraping while you're away. Same "you're the one at the keyboard" property that makes the rest of Reply Scout low-risk, just automating the scroll motion itself. Auto-scan is automatically paused for the run (so it isn't competing with the digest for the same local-model queue) and resumes exactly as it was once the digest finishes.
+- **Pulls in fresh posts first.** If X is showing a "Show N posts" prompt (new tweets that arrived while you were reading) it gets clicked automatically before scrolling down for older content, so the freshest posts are considered too — best-effort text match, not guaranteed to catch every case.
+- **Scans in batches for larger pools.** With more than ~25 posts collected, it first shortlists candidates from each batch independently, then runs the full digest format only over the merged shortlist — keeps every individual model call a reasonable size instead of one huge request. Expect this to take a couple of minutes on a local model; the button shows live progress (posts loaded, then batch N/M) the whole time.
+- **Separate pipeline from reply-scoring**: its own prompt, no image handling.
+- **Skips repeats**: anything already surfaced in a digest within the last ~3 days is filtered out locally before it's even sent to the model, so you won't see the same item twice across mornings.
+- **X only.** LinkedIn isn't supported — it's a different site with entirely different page structure, and would need its own content script built against its actual markup.
+
 ## Notes
 
 - **Where it's active:** the panel only appears on `x.com/home` and individual List timelines (`x.com/i/lists/...`). It stays off on profile pages, single-post (`/status/...`) pages, search, and everywhere else — those aren't monitoring feeds.
@@ -40,6 +57,11 @@ No X API needed — it only sees what your logged-in browser already renders.
 - **Model:** uses `claude-sonnet-4-6`. You can change the `MODEL` constant in `background.js`.
 - **Privacy:** your key and settings live in Chrome's local extension storage. Post text (and, if enabled, post images) is sent only to api.anthropic.com, or to your own local LM Studio server, for scoring.
 - **X DOM changes:** X occasionally renames its internal markup. If scanning suddenly finds nothing, the selectors in `content.js` (`article[data-testid="tweet"]`, `[data-testid="tweetText"]`, `[data-testid="User-Name"]`) may need updating. With **Warn if X's layout seems to have changed** on (default), the panel surfaces this itself — if a scan on Home or a List keeps finding zero posts, it shows a warning instead of silently doing nothing. This is diagnostic only: nothing about scanning, ad-detection, or scoring behavior changes when it fires.
+- **Reply context:** when X shows a "Replying to @user" line above a reply surfaced in a feed/list, it's captured and included — so the scorer isn't judging a reply blind to what it's actually responding to.
+- **Backlog cap:** if local scoring can't keep up with how fast you're scrolling, the queue stops growing past 150 posts rather than piling up indefinitely — the status line shows "backlog full" when this kicks in, and unscored posts get reconsidered once it drains.
+- **Dedup survives a reload:** recently-scored posts are remembered for ~2 days (not just for the current page load), so a refresh or reopened tab won't re-score — and re-pay for — the same posts.
+- **Draft quality stat:** settings shows a running "N of M drafted replies copied" figure — a rough, free signal on whether your rubric is producing drafts you actually use.
+- **Resilience:** all network requests (Anthropic, LM Studio, image fetches) time out rather than hanging forever, and the background worker stays alive for the duration of long local-model calls instead of risking Chrome suspending it mid-request. Scoring and digest results are delivered as independent messages, targeted at the specific tab that made the request, rather than a single long-lived callback or an untargeted broadcast — either of which could leave a result computed successfully in the background but never actually reach the panel. If the background worker ever dies mid-task despite all that (an MV3 risk that isn't fully preventable), an idle timeout — reset on every digest progress ping, so a genuinely-still-working multi-batch digest is never killed early — catches the silence and fails visibly instead of leaving the panel looking frozen.
 - **Stay hand-on-the-wheel:** the copy-only design is deliberate. Automated posting from a session is against X's rules and would undercut the whole point — replies only work when they're genuinely yours.
 
 ## Files

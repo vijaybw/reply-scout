@@ -78,6 +78,14 @@
 .rs-scan:hover { background: #2563eb; }
 .rs-scan:disabled { background: #33404b; cursor: default; }
 
+.rs-scan-quiet {
+  margin-top: 6px;
+  background: #222c35;
+  color: #b7c4cd;
+}
+.rs-scan-quiet:hover { background: #2c3843; }
+.rs-scan-quiet:disabled { background: #1a2128; color: #6b7885; }
+
 .rs-status {
   margin: 8px 2px 4px;
   color: #8fa3b0;
@@ -197,3 +205,67 @@ article.rs-flash {
 
 /* v1.3 — threshold filter */
 .rs-card-filtered { display: none; }
+
+/* v1.7 — digest */
+.rs-digest {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rs-digest:empty { margin-top: 0; }
+
+.rs-digest-item {
+  background: #161e26;
+  border: 1px solid #2a343d;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.rs-digest-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rs-digest-link {
+  color: #6db3d9;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.rs-digest-link:hover { text-decoration: underline; }
+
+.rs-digest-author {
+  color: #b7c4cd;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-digest-summary { color: #e6ebef; }
+
+.rs-digest-whycare {
+  margin-top: 4px;
+  color: #8fa3b0;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.rs-digest-empty {
+  color: #8fa3b0;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.rs-digest-suggestion {
+  background: #12351f;
+  border: 1px solid #2e4a3a;
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #e6ebef;
+  font-size: 13px;
+}
+.rs-digest-suggestion strong { color: #7fd6a4; }

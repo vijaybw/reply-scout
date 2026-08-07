@@ -74,6 +74,11 @@
     <p class="sub">The brain of your scanner: one key, one thesis, one rubric, one voice. Everything stays in this browser's local extension storage.</p>
 
     <div class="card">
+      <label style="margin:0">Draft quality</label>
+      <p class="hint" id="draftStats" style="margin-top:6px">Loading…</p>
+    </div>
+
+    <div class="card">
       <label for="provider">Model provider</label>
       <p class="hint">Claude API (best quality) or a local model through LM Studio (free, private, runs on your machine).</p>
       <select id="provider" style="width:100%;padding:9px 10px;background:#0d1319;color:var(--text);border:1px solid var(--line);border-radius:7px;font-size:13.5px">
@@ -126,6 +131,12 @@
         <input type="number" id="minScore" min="1" max="10" step="0.5" />
       </div>
       <p class="hint" style="margin-top:6px">Posts below this get a score and a reason, but no draft. Raise it if you're getting too many mediocre suggestions.</p>
+    </div>
+
+    <div class="card">
+      <label for="digestFocus">Digest focus</label>
+      <p class="hint">Used only by the panel's "Generate digest" button — a separate, on-demand summary of what's worth reading, not the per-post reply scoring above. Describe your role and what's worth surfacing vs. skipping; edit freely.</p>
+      <textarea id="digestFocus" class="tall"></textarea>
     </div>
 
     <div class="card">
