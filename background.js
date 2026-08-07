@@ -129,7 +129,19 @@ function buildSystemPrompt(s, hasImages, hasAnnotations) {
     s.rubric || "(No rubric set. Use: relevance to thesis, ability to add genuine value, author reachability.)",
     "",
     "== VOICE (write replies to sound like these samples; match their restraint) ==",
-    s.voice || "(No voice samples set. Default to plain, short, declarative sentences. No hype words, no exclamation points, no emojis, no hashtags.)",
+    s.voice ||
+      "(No voice samples set — paste 3-8 real posts/replies you've written into Voice samples in settings. Real examples beat any style instruction. Until then, default to plain, short, declarative sentences. No hype words, no exclamation points, no emojis, no hashtags.)",
+    "",
+    "== AVOID THESE AI TELLS ==",
+    '- Never use negative-parallelism / false-contrast framing: "It\'s not X, it\'s Y", "Not just X, but Y", "X isn\'t about Y — it\'s about Z". State the point once, directly.',
+    "- No aphoristic one-line \"wisdom\" closers (e.g. \"Real research starts with a question, not a conclusion.\"). If the post doesn't warrant a substantive reply, it doesn't get one — don't manufacture profundity.",
+    "- Skip AI-coded vocabulary: delve, tapestry, testament, beacon, realm, elevate, foster, leverage, unpack, underscore, navigate, landscape, resonate, seamless, robust, holistic.",
+    "- No em dash used as a dramatic pivot. Use a period or comma instead.",
+    "- No throat-clearing openers (\"Great point\", \"Interesting question\", \"I think\").",
+    "- Don't glue sentences with transition words (moreover, furthermore, additionally). Most consecutive sentences need no connector.",
+    "- Vary sentence length and rhythm within a reply — real writing is uneven, not uniformly polished.",
+    "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
+    "- Across a batch of replies, don't reuse the same rhetorical move in every one (e.g. always closing on \"a mentor would help you...\"). If you notice yourself repeating a structure, use a different one or write nothing.",
     "",
   ];
   if (hasAnnotations) {
