@@ -397,11 +397,11 @@ const NO_VISION_SUPPORT = /does not support image/i;
 // doubling the wait to 6+ minutes.
 const LOCAL_TIMED_OUT = /didn't respond within/i;
 
-async function callLocal(s, systemPrompt, userContent, modelOverride, maxTokens) {
+async function callLocal(s, systemPrompt, userContent, modelOverride, maxTokens, reasoningEffort) {
   // One retry with backoff: after a crash, LM Studio's JIT loader needs a few
   // seconds to bring the model back before the retry can succeed.
   try {
-    return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens);
+    return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens, reasoningEffort);
   } catch (firstErr) {
     const firstMsg = String(firstErr.message || firstErr);
     if (NO_VISION_SUPPORT.test(firstMsg)) {
@@ -415,14 +415,14 @@ async function callLocal(s, systemPrompt, userContent, modelOverride, maxTokens)
     }
     await sleep(6000);
     try {
-      return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens);
+      return await callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens, reasoningEffort);
     } catch (secondErr) {
       throw new Error(String(secondErr.message || secondErr) + " (retried once after 6s)");
     }
   }
 }
 
-async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens) {
+async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTokens, reasoningEffort) {
   const base = (s.localBaseUrl || "http://localhost:1234/v1").replace(/\/+$/, "");
   let res;
   try {
@@ -435,6 +435,11 @@ async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTok
           model: modelOverride || s.localModel || "local-model",
           temperature: 0.4,
           max_tokens: maxTokens || 2000,
+          // Only meaningful to reasoning models (e.g. gpt-oss) that support it;
+          // non-reasoning models on an OpenAI-compatible server just ignore it.
+          // Keeps thinking from eating the max_tokens budget before the model
+          // writes the actual JSON output.
+          ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userContent },
@@ -532,8 +537,12 @@ async function scorePosts(posts) {
   const userContent = hasVisionImages
     ? buildMultimodalContent(posts, imagesByPostId, s.provider === "local" ? "openai" : "anthropic")
     : buildUserContent(posts);
+  // 3500 (not the old 2000 default) so a reasoning model's thinking doesn't
+  // crowd out the actual JSON output — observed truncating mid-response
+  // and occasionally returning empty content otherwise. "low" effort keeps
+  // it from over-thinking a style-constrained scoring/drafting task.
   const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent)
+    ? await callLocal(s, systemPrompt, userContent, undefined, 3500, "low")
     : await callAnthropic(s, systemPrompt, userContent);
   return parseResults(text);
 }
@@ -677,7 +686,7 @@ async function shortlistChunk(s, chunk) {
   const systemPrompt = buildShortlistSystemPrompt(s);
   const userContent = buildDigestUserContent(chunk);
   const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent)
+    ? await callLocal(s, systemPrompt, userContent, undefined, 3500, "low")
     : await callAnthropic(s, systemPrompt, userContent);
   return parseShortlistResult(text);
 }
@@ -739,7 +748,7 @@ async function generateDigest(posts, requestId, tabId) {
   // (finish_reason "length") on real digests, which then fails to parse.
   const DIGEST_MAX_TOKENS = 3500;
   const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent, undefined, DIGEST_MAX_TOKENS)
+    ? await callLocal(s, systemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
     : await callAnthropic(s, systemPrompt, userContent);
   const digest = parseDigestResult(text);
 
