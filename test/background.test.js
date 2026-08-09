@@ -49,6 +49,13 @@ test("buildDigestSystemPrompt: forbids inventing facts about the user's own team
   assert.match(prompt, /Never invent facts, numbers, outcomes, or specifics about the user's own team/);
 });
 
+test("buildDigestSystemPrompt: forbids pitching, link-dropping, sycophancy, and engagement-bait", () => {
+  const prompt = buildDigestSystemPrompt({}, false);
+  assert.match(prompt, /Never pitch or link-drop/);
+  assert.match(prompt, /No sycophancy/);
+  assert.match(prompt, /engagement-bait/);
+});
+
 test("buildSystemPrompt: still includes voice samples and AI-tells after the shared-section refactor", () => {
   const s = { voice: "Another distinctive sample line." };
   const prompt = buildSystemPrompt(s, false, false);
