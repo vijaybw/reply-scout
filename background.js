@@ -131,7 +131,7 @@ function buildVoiceAndTellsSection(s) {
       "(No voice samples set — paste 3-8 real posts/replies you've written into Voice samples in settings. Real examples beat any style instruction. Until then, default to plain, short, declarative sentences. No hype words, no exclamation points, no emojis, no hashtags.)",
     "",
     "== AVOID THESE AI TELLS ==",
-    "- Write as one person speaking for themselves, never \"we\" (unless the voice samples themselves consistently use \"we\").",
+    "- Pronoun choice (I vs. we) should match how the voice samples actually use it in a similar context — a personal reaction/opinion vs. describing your own team's work are often different registers for the same person. Don't default to a uniform choice that ignores that pattern.",
     '- Never use negative-parallelism / false-contrast framing: "It\'s not X, it\'s Y", "Not just X, but Y", "X isn\'t about Y — it\'s about Z". State the point once, directly.',
     "- No aphoristic one-line \"wisdom\" closers (e.g. \"Real research starts with a question, not a conclusion.\"). If there's nothing substantive left to add, stop instead of manufacturing a closing platitude.",
     "- Skip AI-coded vocabulary: delve, tapestry, testament, beacon, realm, elevate, foster, leverage, unpack, underscore, navigate, landscape, resonate, seamless, robust, holistic.",

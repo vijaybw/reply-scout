@@ -31,7 +31,12 @@ test("buildDigestSystemPrompt: includes the AI-tells guardrails", () => {
   const prompt = buildDigestSystemPrompt({}, false);
   assert.match(prompt, /AVOID THESE AI TELLS/);
   assert.match(prompt, /delve, tapestry/);
-  assert.match(prompt, /never "we"/);
+  assert.match(prompt, /Pronoun choice/);
+});
+
+test("buildDigestSystemPrompt: does not blanket-ban 'we' (voice samples should govern pronoun choice)", () => {
+  const prompt = buildDigestSystemPrompt({}, false);
+  assert.doesNotMatch(prompt, /never "we"/);
 });
 
 test("buildDigestSystemPrompt: scopes voice/tells to draft.text, not item summaries", () => {
