@@ -363,14 +363,18 @@ article.rs-flash {
 }
 
 .rs-digest-link {
+  flex: none;
   color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
 }
 .rs-digest-link:hover { text-decoration: underline; }
 
 .rs-digest-author {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--text-2);
   font-size: 12px;
   overflow: hidden;
