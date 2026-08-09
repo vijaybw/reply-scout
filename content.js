@@ -673,12 +673,22 @@
       const card = document.createElement("div");
       card.className = "rs-digest-suggestion";
 
+      const lead = document.createElement("div");
+      lead.className = "rs-digest-suggestion-lead";
       const label = document.createElement("strong");
-      label.className = "rs-digest-suggestion-label";
-      label.textContent = isReply
-        ? `Reply worth sending${src ? ` — to ${src.author} ${src.handle}`.trim() : ""}`
-        : "A post worth sending today";
-      card.appendChild(label);
+      label.textContent = "Today's move: ";
+      lead.appendChild(label);
+      lead.appendChild(document.createTextNode(
+        digest.draft.why || (isReply ? "A reply worth sending." : "A post worth sending today.")
+      ));
+      card.appendChild(lead);
+
+      const target = document.createElement("div");
+      target.className = "rs-digest-suggestion-target";
+      target.textContent = isReply
+        ? `Reply to ${src ? `${src.author} ${src.handle}`.trim() : "this post"}`
+        : "New post";
+      card.appendChild(target);
 
       const ta = document.createElement("textarea");
       ta.className = "rs-reply";

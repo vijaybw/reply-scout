@@ -572,11 +572,12 @@ function buildDigestSystemPrompt(s) {
     "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
     "",
     "- After picking the items, draft ONE actual, ready-to-send piece of writing grounded in them: either a reply to whichever single item is most worth responding to, or (if none is genuinely worth a reply) a standalone post idea. Write real, specific text — not a description of what a reply/post could say.",
+    "- Also give that draft a one-sentence \"today's move\" framing: why this specific reply/post, out of everything in the digest, is the one worth acting on today.",
     "",
     "== OUTPUT ==",
     "Respond with ONLY a JSON object, no prose, no markdown fences:",
-    '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "draft": {"type": "reply", "url": "<url of the item this replies to, must match one of the items above>", "text": "<the actual drafted reply>"} }',
-    'Or, if a standalone post fits better than a reply to any single item: {"items": [...], "draft": {"type": "post", "text": "<the actual drafted post>"} }',
+    '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "draft": {"type": "reply", "url": "<url of the item this replies to, must match one of the items above>", "why": "<one-sentence today\'s-move framing>", "text": "<the actual drafted reply>"} }',
+    'Or, if a standalone post fits better than a reply to any single item: {"items": [...], "draft": {"type": "post", "why": "<one-sentence today\'s-move framing>", "text": "<the actual drafted post>"} }',
     "If nothing in the input genuinely qualifies for items, return an empty items array and draft: null.",
   ].join("\n");
 }
@@ -660,10 +661,11 @@ function parseDigestResult(text) {
   let draft = null;
   const d = parsed.draft;
   if (d && typeof d === "object" && typeof d.text === "string" && d.text.trim()) {
+    const why = typeof d.why === "string" ? d.why : "";
     if (d.type === "reply" && typeof d.url === "string" && items.some((i) => i.url === d.url)) {
-      draft = { type: "reply", url: d.url, text: d.text };
+      draft = { type: "reply", url: d.url, why, text: d.text };
     } else if (d.type === "post") {
-      draft = { type: "post", text: d.text };
+      draft = { type: "post", why, text: d.text };
     }
   }
 
