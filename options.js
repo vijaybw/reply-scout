@@ -24,7 +24,7 @@ const DEFAULT_DIGEST_FOCUS = `I'm a research-lab founder/scientist and engineeri
 Skip general-interest content — jokes, life advice, unrelated science/culture stories — even if it's getting a lot of engagement from people you follow, unless it's genuinely relevant to the above.
 Skip engagement-bait, giveaways, and anything that's just farming replies or quote-tweets.`;
 
-const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore", "digestFocus"];
+const FIELDS = ["provider", "apiKey", "localBaseUrl", "localModel", "localOcrModel", "thesis", "rubric", "voice", "minScore", "digestFocus", "digestPostTarget"];
 const CHECKBOX_FIELDS = ["processImages", "warnLayoutChange"];
 
 function toggleProviderCards() {
@@ -47,6 +47,7 @@ async function load() {
     processImages: false,
     warnLayoutChange: true,
     digestFocus: DEFAULT_DIGEST_FOCUS,
+    digestPostTarget: 45,
   });
   for (const f of FIELDS) {
     document.getElementById(f).value = stored[f];
@@ -78,6 +79,7 @@ async function save() {
     data[f] = document.getElementById(f).checked;
   }
   data.minScore = parseFloat(data.minScore) || 6;
+  data.digestPostTarget = Math.max(15, parseInt(data.digestPostTarget, 10) || 45);
   await chrome.storage.local.set(data);
   const status = document.getElementById("status");
   status.textContent = "Saved";

@@ -44,14 +44,16 @@
   const EMPTY_SCAN_STREAK_THRESHOLD = 3; // consecutive zero-article scans before warning
   const PENDING_CAP = 150;       // stop queuing new posts past this — bounds the backlog if scoring can't keep up with scroll speed
 
-  // Was 120, cut to 45 given real-world local-model disconnect frequency at
-  // the time — digest processes chunks strictly sequentially (no
-  // parallelism), so every extra chunk directly multiplies worst-case wait
-  // time when retries are common. Raised to 60 (~2-3 shortlist chunks + 1
-  // reduce pass, still well short of the ~5-chunk territory that caused
-  // trouble at 120) now that the pipeline has been running reliably.
-  const DIGEST_SCROLL_TARGET = 60;
-  const DIGEST_SCROLL_MAX_STEPS = 80; // hard cap regardless of target, in case posts are sparse
+  // How many posts a digest tries to collect before running — configurable
+  // in settings (digestPostTarget) since the tradeoff is real and personal:
+  // more posts means a richer digest but more sequential local-model calls
+  // in the map-reduce stage (each extra ~25 posts is roughly one more call),
+  // and past experience in this project (120 -> cut to 45 -> raised to 60)
+  // showed that tradeoff hits reliability limits differently depending on
+  // the local setup. 45 is the default; digestScrollMaxSteps is always
+  // derived from it at a fixed ratio rather than being its own setting.
+  let digestScrollTarget = 45;
+  let digestScrollMaxSteps = digestMaxStepsFor(digestScrollTarget);
   const DIGEST_SCROLL_STALL_LIMIT = 5; // stop early if this many consecutive steps add nothing new
   const DIGEST_SCROLL_STEP_DELAY = 1400; // ms between scroll steps — human-like pace, lets content load
 
@@ -78,11 +80,13 @@
     }
   }
 
-  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true, theme: "" }).then((s) => {
+  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true, theme: "", digestPostTarget: 45 }).then((s) => {
     autoScan = s.autoScan;
     hideBelow = s.hideBelow;
     minScore = parseFloat(s.minScore) || 6;
     warnLayoutChange = s.warnLayoutChange;
+    digestScrollTarget = parseInt(s.digestPostTarget, 10) || 45;
+    digestScrollMaxSteps = digestMaxStepsFor(digestScrollTarget);
     if (s.theme === "dark" || s.theme === "light") panel.setAttribute("data-theme", s.theme);
     updateAutoUI();
     updateFilterUI();
@@ -167,6 +171,10 @@
     if (changes.warnLayoutChange) {
       warnLayoutChange = changes.warnLayoutChange.newValue;
       updateStatusIdle();
+    }
+    if (changes.digestPostTarget) {
+      digestScrollTarget = parseInt(changes.digestPostTarget.newValue, 10) || 45;
+      digestScrollMaxSteps = digestMaxStepsFor(digestScrollTarget);
     }
   });
 
@@ -600,6 +608,13 @@
   // loading it via scroll (new tweets that arrived while you were reading).
   // Text-pattern match rather than a specific selector, since this hasn't
   // been confirmed against live markup — best-effort, not guaranteed to hit.
+  // Keeps the same ~4/3 headroom ratio used historically (45 target / 60 max
+  // steps, then 60 / 80) — enough slack for stalls and ad-skipping without
+  // the cap itself becoming the bottleneck for a user-chosen target.
+  function digestMaxStepsFor(target) {
+    return Math.max(10, Math.round(target * 4 / 3));
+  }
+
   function clickShowNewPostsButton() {
     const candidates = document.querySelectorAll('div[role="button"], span, a');
     for (const el of candidates) {
@@ -615,7 +630,7 @@
   async function autoScrollAndCollect(onProgress) {
     const collected = new Map(); // url -> post, dedup across the whole scroll
     let stall = 0;
-    for (let step = 0; step < DIGEST_SCROLL_MAX_STEPS; step++) {
+    for (let step = 0; step < digestScrollMaxSteps; step++) {
       if (clickShowNewPostsButton()) await sleep(500); // let the freshly-injected posts render
       const before = collected.size;
       document.querySelectorAll('article[data-testid="tweet"]').forEach((article) => {
@@ -627,7 +642,7 @@
       });
       onProgress(collected.size);
 
-      if (collected.size >= DIGEST_SCROLL_TARGET) break;
+      if (collected.size >= digestScrollTarget) break;
       stall = collected.size > before ? 0 : stall + 1;
       if (stall >= DIGEST_SCROLL_STALL_LIMIT) break; // feed's exhausted or not loading more — stop rather than spin
 
@@ -757,7 +772,7 @@
     if (digestInFlight) return;
     digestInFlight = true;
     digestBtn.disabled = true;
-    digestBtn.textContent = "Loading posts… 0/" + DIGEST_SCROLL_TARGET;
+    digestBtn.textContent = "Loading posts… 0/" + digestScrollTarget;
 
     // Auto-scan's own MutationObserver reacts to every tweet our scrolling
     // reveals, queuing unrelated scoring requests that compete with the
@@ -780,7 +795,7 @@
     };
 
     const posts = await autoScrollAndCollect((count) => {
-      digestBtn.textContent = `Loading posts… ${count}/${DIGEST_SCROLL_TARGET}`;
+      digestBtn.textContent = `Loading posts… ${count}/${digestScrollTarget}`;
     });
 
     if (posts.length === 0) {
