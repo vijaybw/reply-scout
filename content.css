@@ -143,11 +143,23 @@
 }
 .rs-linklike:hover { color: var(--text); }
 .rs-linklike:focus-visible,
-.rs-scan:focus-visible,
-.rs-btn:focus-visible,
 .rs-icon-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+/* Pill-shaped buttons: an outset ring on a border-radius:999px shape reads
+   as a detached, broken-looking halo. Inset instead, so it hugs the pill.
+   Explicitly reset plain :focus first -- some browsers paint a native
+   default ring on buttons that isn't otherwise fully suppressed just by
+   overriding :focus-visible. */
+.rs-scan:focus,
+.rs-btn:focus {
+  outline: none;
+}
+.rs-scan:focus-visible,
+.rs-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .rs-icon-btn {

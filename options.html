@@ -213,30 +213,7 @@
 
     <p class="footer-note">Reply Scout never posts, likes, or follows for you. It scores and drafts; you decide.</p>
   </div>
-  <script>
-    (function () {
-      var root = document.documentElement;
-      var btn = document.getElementById("themeToggle");
-      function apply(theme) {
-        if (theme === "dark" || theme === "light") root.setAttribute("data-theme", theme);
-      }
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get({ theme: "" }, function (s) { apply(s.theme); });
-      }
-      function current() {
-        var attr = root.getAttribute("data-theme");
-        if (attr) return attr;
-        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      }
-      btn.addEventListener("click", function () {
-        var next = current() === "dark" ? "light" : "dark";
-        root.setAttribute("data-theme", next);
-        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.set({ theme: next });
-        }
-      });
-    })();
-  </script>
+  <script src="theme.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
