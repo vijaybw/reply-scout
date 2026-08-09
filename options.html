@@ -5,14 +5,15 @@
   <title>Reply Scout — Settings</title>
   <style>
     :root {
-      --bg: #10161c;
-      --card: #161e26;
-      --line: #2a343d;
-      --text: #e6ebef;
-      --muted: #8fa3b0;
-      --accent: #1d4ed8;
-      --accent-hover: #2563eb;
-      --ok: #7fd6a4;
+      --bg: #fcf9f4;
+      --card: #ffffff;
+      --line: #e4dccf;
+      --text: #201b2b;
+      --muted: #8a8394;
+      --accent: #4b3ddb;
+      --accent-hover: #362aa6;
+      --ok: #127a5f;
+      --input-bg: #fbf8f3;
     }
     * { box-sizing: border-box; }
     body {
@@ -24,7 +25,7 @@
       line-height: 1.5;
     }
     .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
-    h1 { font-size: 20px; margin: 0 0 4px; }
+    h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px; }
     .sub { color: var(--muted); margin: 0 0 24px; }
     .card {
       background: var(--card);
@@ -38,29 +39,29 @@
     input[type="password"], input[type="text"], input[type="number"], textarea {
       width: 100%;
       padding: 9px 10px;
-      background: #0d1319;
+      background: var(--input-bg);
       color: var(--text);
       border: 1px solid var(--line);
-      border-radius: 7px;
+      border-radius: 8px;
       font-family: inherit;
       font-size: 13.5px;
     }
     textarea { resize: vertical; min-height: 110px; }
     textarea.tall { min-height: 170px; }
     input:focus, textarea:focus, button:focus-visible {
-      outline: 2px solid #6db3d9;
+      outline: 2px solid var(--accent);
       outline-offset: 1px;
     }
     .row { display: flex; align-items: center; gap: 10px; }
     .row input[type="number"] { width: 80px; }
     button.save {
-      padding: 10px 22px;
+      padding: 10px 24px;
       border: none;
-      border-radius: 8px;
+      border-radius: 999px;
       background: var(--accent);
       color: #fff;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
     }
     button.save:hover { background: var(--accent-hover); }
@@ -81,7 +82,7 @@
     <div class="card">
       <label for="provider">Model provider</label>
       <p class="hint">Claude API (best quality) or a local model through LM Studio (free, private, runs on your machine).</p>
-      <select id="provider" style="width:100%;padding:9px 10px;background:#0d1319;color:var(--text);border:1px solid var(--line);border-radius:7px;font-size:13.5px">
+      <select id="provider" style="width:100%;padding:9px 10px;background:var(--input-bg);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:13.5px">
         <option value="anthropic">Claude API (api.anthropic.com)</option>
         <option value="local">Local — LM Studio</option>
       </select>
