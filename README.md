@@ -1,8 +1,8 @@
 <img src="assets/banner.png" alt="Reply Scout — score your feed, draft in your voice, post by hand" width="600">
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-1d4ed8)](LICENSE)
-[![Manifest V3](https://img.shields.io/badge/manifest-v3-2f6fd6)](manifest.json)
-[![Local model support](https://img.shields.io/badge/local%20model-LM%20Studio-6db3d9)](#using-a-local-model-instead-of-the-api)
+[![License: MIT](https://img.shields.io/badge/license-MIT-4B3DDB)](LICENSE)
+[![Manifest V3](https://img.shields.io/badge/manifest-v3-6353E8)](manifest.json)
+[![Local model support](https://img.shields.io/badge/local%20model-LM%20Studio-FF6B57)](#using-a-local-model-instead-of-the-api)
 
 A Chrome extension for x.com that turns your feed into a scored, draftable queue instead of an endless scroll. It reads whatever's on your screen, scores each post against a thesis and rubric you write, and drafts a reply in your own voice for anything worth engaging. You edit, copy, and post by hand — it never posts, likes, or follows for you.
 

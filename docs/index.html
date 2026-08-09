@@ -5,114 +5,116 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reply Scout — score your feed, draft in your voice, post by hand</title>
 <meta name="description" content="A Chrome extension for x.com that scores your feed against your own thesis and rubric, then drafts replies in your voice. You review and post by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#10161c; --surface:#161e26; --surface-deep:#0d1319; --line:#2a343d;
-    --text:#e6ebef; --text-2:#b7c4cd; --text-3:#8fa3b0;
-    --accent:#1d4ed8; --accent-hover:#2563eb; --accent-sky:#6db3d9;
-    --green:#7fd6a4; --green-bg:#12351f;
-    --amber:#f0b45f; --amber-bg:#3a2f14;
-    --rose:#c48a9a; --rose-bg:#33222a;
+    --cream:#FCF9F4; --cream-2:#FCEEE6; --card:#ffffff; --line:#EFE8DC;
+    --ink:#201B2B; --text-2:#665f73; --text-3:#8a8394;
+    --indigo:#4B3DDB; --indigo-mid:#6353E8; --indigo-deep:#362AA6; --indigo-tint:#ECE8FC;
+    --coral:#FF6B57; --coral-deep:#F0533C; --coral-tint:#FFE6E0;
+    --amber:#FFB23E; --amber-tint:#FFF3DC;
+    --teal:#2FB592; --teal-tint:#E3F5EF;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;background:var(--ink);color:var(--text);}
+  html,body{margin:0;background:var(--cream);color:var(--ink);}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    line-height:1.55;
-    -webkit-font-smoothing:antialiased;
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;
   }
-  .mono{font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;}
-  a{color:var(--accent-sky);}
+  .display{font-family:"Bricolage Grotesque",Inter,sans-serif;}
+  a{color:var(--indigo);}
   .wrap{max-width:1100px;margin:0 auto;padding:0 28px;}
 
   header.top{
     display:flex;align-items:center;justify-content:space-between;
-    padding:22px 0;border-bottom:1px solid var(--line);
+    padding:22px 0;
   }
-  .brand{display:flex;align-items:center;gap:12px;}
-  .brand .word{font-weight:700;font-size:18px;letter-spacing:-0.01em;}
-  .brand .word span{color:var(--green);}
+  .brand{display:flex;align-items:center;gap:11px;}
+  .brand .word{font-weight:800;font-size:19px;letter-spacing:-0.01em;}
+  .brand .word span{color:var(--indigo);}
   .top a.gh{
-    color:var(--text-2);text-decoration:none;font-size:14px;
-    border:1px solid var(--line);padding:7px 14px;border-radius:7px;
+    color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;
+    border:1px solid var(--line);padding:8px 16px;border-radius:999px;background:var(--card);
   }
-  .top a.gh:hover{color:var(--text);border-color:var(--accent-sky);}
+  .top a.gh:hover{border-color:var(--indigo);}
 
-  .hero{
-    display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;
-    padding:88px 0 96px;
+  .hero{position:relative;padding:72px 0 96px;overflow:hidden;}
+  .blob{
+    position:absolute;top:-160px;left:50%;transform:translateX(-38%);
+    width:820px;height:520px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #E7E1FB, transparent 60%),
+               radial-gradient(circle at 70% 60%, #FFE1D8, transparent 55%);
+    filter:blur(10px);opacity:0.9;z-index:0;
   }
-  @media (max-width:880px){ .hero{grid-template-columns:1fr;padding:56px 0;} }
+  .hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;}
+  @media (max-width:880px){ .hero-inner{grid-template-columns:1fr;} }
 
   .eyebrow{
-    font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-3);
-    display:flex;align-items:center;gap:10px;margin-bottom:20px;
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:999px;
+    padding:7px 16px 7px 8px;font-size:13.5px;color:var(--text-2);margin-bottom:24px;
   }
-  .eyebrow .dots{display:flex;gap:5px;}
-  .eyebrow .dots i{width:7px;height:7px;border-radius:50%;display:inline-block;}
-  .eyebrow .dots i:nth-child(1){background:var(--green);}
-  .eyebrow .dots i:nth-child(2){background:var(--amber);}
-  .eyebrow .dots i:nth-child(3){background:var(--rose);}
+  .eyebrow b{
+    background:var(--indigo);color:#fff;font-size:11.5px;font-weight:700;
+    padding:3px 10px;border-radius:999px;letter-spacing:0.02em;
+  }
 
   h1{
-    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-    font-weight:700;font-size:44px;line-height:1.12;letter-spacing:-0.015em;
-    margin:0 0 22px;text-wrap:balance;
+    font-weight:800;font-size:46px;line-height:1.14;letter-spacing:-0.02em;
+    margin:0 0 20px;text-wrap:balance;color:var(--ink);
   }
-  h1 .g{color:var(--green);}
-  .sub{font-size:18px;color:var(--text-2);max-width:46ch;margin:0 0 30px;}
+  h1 .hl{color:var(--indigo);}
+  .sub{font-size:17.5px;color:var(--text-2);max-width:46ch;margin:0 0 32px;}
 
   .cta-row{display:flex;gap:14px;flex-wrap:wrap;}
   .btn{
     display:inline-flex;align-items:center;gap:8px;
-    padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px;
+    padding:13px 22px;border-radius:999px;font-weight:700;font-size:15px;
     text-decoration:none;border:1px solid transparent;cursor:pointer;
   }
-  .btn-primary{background:var(--accent);color:#fff;}
-  .btn-primary:hover{background:var(--accent-hover);}
-  .btn-quiet{background:var(--surface);color:var(--text-2);border-color:var(--line);}
-  .btn-quiet:hover{color:var(--text);border-color:var(--accent-sky);}
+  .btn-primary{background:var(--indigo);color:#fff;}
+  .btn-primary:hover{background:var(--indigo-deep);}
+  .btn-quiet{background:var(--card);color:var(--ink);border-color:var(--line);}
+  .btn-quiet:hover{border-color:var(--indigo);}
 
   .hero-art{position:relative;display:flex;justify-content:center;}
-  .hero-art img{
-    width:340px;max-width:100%;border-radius:12px;
-    filter:drop-shadow(0 30px 60px rgba(0,0,0,0.5));
-    transform:rotate(1.2deg);
+  .hero-art .frame{
+    background:#10161c;border-radius:20px;padding:14px;
+    box-shadow:0 30px 70px rgba(75,61,219,0.18), 0 8px 24px rgba(32,27,43,0.12);
+    transform:rotate(1deg);
   }
+  .hero-art img{width:320px;max-width:100%;display:block;border-radius:10px;}
 
-  section{padding:64px 0;border-top:1px solid var(--line);}
+  section{padding:60px 0;}
+  section.tint{background:var(--cream-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
   .kicker{
-    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-    font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-sky);
-    margin-bottom:14px;
+    font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:var(--coral-deep);
+    font-weight:700;margin-bottom:14px;
   }
-  h2{font-size:28px;margin:0 0 16px;letter-spacing:-0.01em;text-wrap:balance;}
+  h2{font-weight:800;font-size:30px;margin:0 0 16px;letter-spacing:-0.015em;text-wrap:balance;}
   .lede{color:var(--text-2);font-size:17px;max-width:64ch;margin:0 0 40px;}
 
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
   @media (max-width:880px){ .steps{grid-template-columns:1fr;} }
-  .step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;}
   .step .n{
-    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-    font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;
-    display:inline-block;margin-bottom:14px;
+    font-weight:800;font-size:15px;width:34px;height:34px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px;
   }
-  .step:nth-child(1) .n{background:var(--green-bg);color:var(--green);}
-  .step:nth-child(2) .n{background:var(--amber-bg);color:var(--amber);}
-  .step:nth-child(3) .n{background:var(--rose-bg);color:var(--rose);}
-  .step h3{font-size:17px;margin:0 0 8px;}
-  .step p{color:var(--text-3);font-size:14.5px;margin:0;}
+  .step:nth-child(1) .n{background:var(--indigo-tint);color:var(--indigo-deep);}
+  .step:nth-child(2) .n{background:var(--coral-tint);color:var(--coral-deep);}
+  .step:nth-child(3) .n{background:var(--amber-tint);color:#9a6100;}
+  .step h3{font-size:17.5px;margin:0 0 8px;font-weight:700;}
+  .step p{color:var(--text-2);font-size:14.5px;margin:0;}
 
   .demo-cards{display:flex;flex-direction:column;gap:12px;margin-top:8px;}
-  .dcard{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:13px 15px;}
+  .dcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px;}
   .dcard-top{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
-  .dcard .score{
-    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-    font-size:12px;font-weight:700;padding:1px 8px;border-radius:999px;
-  }
-  .dcard.hi .score{background:var(--green-bg);color:var(--green);}
-  .dcard.mid .score{background:var(--amber-bg);color:var(--amber);}
-  .dcard.lo .score{background:var(--rose-bg);color:var(--rose);}
+  .dcard .score{font-weight:800;font-size:12.5px;padding:2px 10px;border-radius:999px;}
+  .dcard.hi .score{background:var(--teal-tint);color:#127a5f;}
+  .dcard.mid .score{background:var(--amber-tint);color:#9a6100;}
+  .dcard.lo .score{background:var(--coral-tint);color:var(--coral-deep);}
   .dcard .who{color:var(--text-3);font-size:13px;}
   .dcard .txt{font-size:14.5px;}
   .dcard .why{color:var(--text-3);font-size:13px;font-style:italic;margin-top:5px;}
@@ -120,20 +122,25 @@
   .cols2{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:start;}
   @media (max-width:880px){ .cols2{grid-template-columns:1fr;} }
 
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
   @media (max-width:880px){ .grid2{grid-template-columns:1fr;} }
-  .box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px;}
-  .box h3{margin:0 0 8px;font-size:16px;}
-  .box p{margin:0;color:var(--text-3);font-size:14.5px;}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;}
+  .box h3{margin:0 0 8px;font-size:16px;font-weight:700;}
+  .box p{margin:0;color:var(--text-2);font-size:14.5px;}
+
+  .tagpill{
+    display:inline-flex;align-items:center;font-size:12.5px;font-weight:700;
+    padding:6px 13px;border-radius:999px;letter-spacing:0.02em;
+  }
 
   ol.install{padding-left:22px;color:var(--text-2);}
   ol.install li{margin-bottom:10px;}
   ol.install code{
-    background:var(--surface-deep);border:1px solid var(--line);border-radius:4px;
-    padding:1px 6px;font-size:13px;color:var(--text);
+    background:var(--cream-2);border:1px solid var(--line);border-radius:5px;
+    padding:1px 7px;font-size:13px;color:var(--ink);
   }
 
-  footer{padding:44px 0 60px;color:var(--text-3);font-size:13.5px;}
+  footer{padding:44px 0 60px;color:var(--text-3);font-size:13.5px;border-top:1px solid var(--line);}
   footer .fine{margin-top:10px;max-width:70ch;}
 </style>
 </head>
@@ -143,38 +150,44 @@
   <header class="top">
     <div class="brand">
       <svg width="30" height="30" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="128" height="128" rx="26" fill="var(--surface)"/>
-        <g fill="none" stroke-linecap="round">
-          <path d="M 22 74 A 32 32 0 0 1 54 106" stroke="#1d4ed8" stroke-width="9"/>
-          <path d="M 22 56 A 50 50 0 0 1 72 106" stroke="#2f6fd6" stroke-width="8" opacity="0.85"/>
-          <path d="M 22 38 A 68 68 0 0 1 90 106" stroke="#6db3d9" stroke-width="7" opacity="0.65"/>
+        <rect x="0" y="0" width="128" height="128" rx="26" fill="#FFFFFF"/>
+        <rect x="1" y="1" width="126" height="126" rx="25" fill="none" stroke="#EFE8DC" stroke-width="3"/>
+        <g fill="none" stroke="#4B3DDB" stroke-width="8" stroke-linecap="round">
+          <path d="M 26 78 A 30 30 0 0 1 54 106"/>
+          <path d="M 26 60 A 48 48 0 0 1 72 106"/>
+          <path d="M 26 42 A 66 66 0 0 1 90 106"/>
         </g>
-        <circle cx="22" cy="106" r="7" fill="#e6ebef"/>
-        <circle cx="96" cy="32" r="13" fill="#7fd6a4"/>
+        <circle cx="26" cy="106" r="7" fill="#4B3DDB"/>
+        <circle cx="94" cy="34" r="13" fill="#FF6B57"/>
       </svg>
-      <span class="word mono">Reply<span>&nbsp;Scout</span></span>
+      <span class="word display">Reply<span>&nbsp;Scout</span></span>
     </div>
     <a class="gh" href="https://github.com/vijaybw/reply-scout">View on GitHub &rarr;</a>
   </header>
 
   <div class="hero">
-    <div>
-      <div class="eyebrow"><span class="dots"><i></i><i></i><i></i></span> chrome extension for x.com</div>
-      <h1>Score your feed.<br>Draft in your <span class="g">voice</span>.<br>Post by hand.</h1>
-      <p class="sub">Reads the posts on your screen, scores each one against a thesis and rubric you write, and drafts a reply worth sending — you edit, copy, and post it yourself. Nothing goes out without you.</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/vijaybw/reply-scout#install-2-minutes">Install (2 min) &rarr;</a>
-        <a class="btn btn-quiet" href="https://github.com/vijaybw/reply-scout">Read the source</a>
+    <div class="blob"></div>
+    <div class="hero-inner">
+      <div>
+        <div class="eyebrow"><b>New</b> Chrome extension for x.com</div>
+        <h1 class="display">Score your feed.<br>Draft in your <span class="hl">voice</span>.<br>Post by hand.</h1>
+        <p class="sub">Reads the posts on your screen, scores each one against a thesis and rubric you write, and drafts a reply worth sending — you edit, copy, and post it yourself. Nothing goes out without you.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/vijaybw/reply-scout#install-2-minutes">Install (2 min) &rarr;</a>
+          <a class="btn btn-quiet" href="https://github.com/vijaybw/reply-scout">Read the source</a>
+        </div>
       </div>
-    </div>
-    <div class="hero-art">
-      <img src="assets/panel-preview.png" alt="Reply Scout panel showing two scored posts with drafted replies">
+      <div class="hero-art">
+        <div class="frame">
+          <img src="assets/panel-preview.png" alt="Reply Scout panel showing two scored posts with drafted replies">
+        </div>
+      </div>
     </div>
   </div>
 
   <section>
     <div class="kicker">How it works</div>
-    <h2>Ten minutes, not an hour of scrolling.</h2>
+    <h2 class="display">Ten minutes, not an hour of scrolling.</h2>
     <p class="lede">One button scores what's on screen. You decide what actually gets a reply.</p>
     <div class="steps">
       <div class="step"><span class="n">1</span><h3>Scan visible posts</h3><p>Up to 15 posts on screen get scored against your thesis and rubric, right where you are — Home or any List.</p></div>
@@ -183,12 +196,12 @@
     </div>
   </section>
 
-  <section>
+  <section class="tint">
     <div class="cols2">
       <div>
         <div class="kicker">Your rules, not a template</div>
-        <h2>It scores against your judgment, not ours.</h2>
-        <p class="lede" style="margin-bottom:20px;">Thesis, rubric, digest focus, and voice samples are plain text you write and edit in settings. Nothing is fixed — the same three signal colors the panel uses to sort your feed are yours to define.</p>
+        <h2 class="display">It scores against your judgment, not ours.</h2>
+        <p class="lede" style="margin-bottom:20px;">Thesis, rubric, digest focus, and voice samples are plain text you write and edit in settings. Nothing is fixed — the same signal colors the panel uses to sort your feed are yours to define.</p>
         <div class="grid2">
           <div class="box"><h3>Thesis &amp; rubric</h3><p>The one or two sentences you'd defend in every reply, and exactly how a post earns a high score against it.</p></div>
           <div class="box"><h3>Voice samples</h3><p>Paste 3–8 real posts you've written. Real examples beat any style instruction — this is what keeps drafts sounding like you.</p></div>
@@ -196,17 +209,17 @@
       </div>
       <div class="demo-cards">
         <div class="dcard hi">
-          <div class="dcard-top"><span class="score mono">8.5</span><span class="who">Infra Notes &middot; @sys_infra</span></div>
+          <div class="dcard-top"><span class="score">8.5</span><span class="who">Infra Notes &middot; @sys_infra</span></div>
           <div class="txt">We open-sourced our post-training eval harness today.</div>
           <div class="why">Open tooling for eval reproducibility, directly on-thesis.</div>
         </div>
         <div class="dcard mid">
-          <div class="dcard-top"><span class="score mono">4.0</span><span class="who">Weekend Reading &middot; @wk_reading</span></div>
+          <div class="dcard-top"><span class="score">4.0</span><span class="who">Weekend Reading &middot; @wk_reading</span></div>
           <div class="txt">New leaderboard is up, same three labs at the top again.</div>
           <div class="why">On-topic but nothing substantive to add.</div>
         </div>
         <div class="dcard lo">
-          <div class="dcard-top"><span class="score mono">1.5</span><span class="who">Weekend Reading &middot; @wk_reading</span></div>
+          <div class="dcard-top"><span class="score">1.5</span><span class="who">Weekend Reading &middot; @wk_reading</span></div>
           <div class="txt">Which era of the internet was the best?</div>
           <div class="why">Off-thesis, general-interest engagement bait.</div>
         </div>
@@ -216,16 +229,16 @@
 
   <section>
     <div class="kicker">Claude or fully local</div>
-    <h2>Your key, your machine, your choice.</h2>
+    <h2 class="display">Your key, your machine, your choice.</h2>
     <div class="grid2" style="margin-top:24px;">
       <div class="box"><h3>Anthropic API</h3><p>Bring your own key. Full vision support for image-heavy posts, one small request per scan.</p></div>
       <div class="box"><h3>Local via LM Studio</h3><p>Point it at your own server and nothing leaves your machine. Works with reasoning-aware models via a token-budget-safe scoring path.</p></div>
     </div>
   </section>
 
-  <section>
+  <section class="tint">
     <div class="kicker">Install</div>
-    <h2>Two minutes, unpacked.</h2>
+    <h2 class="display">Two minutes, unpacked.</h2>
     <ol class="install">
       <li>Download or clone the repo, and unzip it somewhere permanent.</li>
       <li>Open <code>chrome://extensions</code>, turn on <strong>Developer mode</strong>.</li>
