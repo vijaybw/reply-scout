@@ -118,6 +118,33 @@ async function getSettings() {
   return chrome.storage.local.get(defaults);
 }
 
+// Shared between buildSystemPrompt (per-post scoring/replies) and
+// buildDigestSystemPrompt (digest draft) — both write ready-to-send text in
+// the user's voice, so both need the same voice samples and AI-tell
+// guardrails. Originally only lived in buildSystemPrompt; the digest's draft
+// silently had neither, which is exactly why it read as generic/corporate
+// even though the main reply-scoring path didn't.
+function buildVoiceAndTellsSection(s) {
+  return [
+    "== VOICE (write in the user's voice; match their restraint) ==",
+    s.voice ||
+      "(No voice samples set — paste 3-8 real posts/replies you've written into Voice samples in settings. Real examples beat any style instruction. Until then, default to plain, short, declarative sentences. No hype words, no exclamation points, no emojis, no hashtags.)",
+    "",
+    "== AVOID THESE AI TELLS ==",
+    "- Write as one person speaking for themselves, never \"we\" (unless the voice samples themselves consistently use \"we\").",
+    '- Never use negative-parallelism / false-contrast framing: "It\'s not X, it\'s Y", "Not just X, but Y", "X isn\'t about Y — it\'s about Z". State the point once, directly.',
+    "- No aphoristic one-line \"wisdom\" closers (e.g. \"Real research starts with a question, not a conclusion.\"). If there's nothing substantive left to add, stop instead of manufacturing a closing platitude.",
+    "- Skip AI-coded vocabulary: delve, tapestry, testament, beacon, realm, elevate, foster, leverage, unpack, underscore, navigate, landscape, resonate, seamless, robust, holistic.",
+    "- No em dash used as a dramatic pivot. Use a period or comma instead.",
+    "- No throat-clearing openers (\"Great point\", \"Interesting question\", \"I think\", \"I appreciate the point\").",
+    "- Don't glue sentences with transition words (moreover, furthermore, additionally). Most consecutive sentences need no connector.",
+    "- Vary sentence length and rhythm — real writing is uneven, not uniformly polished.",
+    "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
+    "- Take an actual position instead of gesturing at \"balance\" or \"both sides\" — a real reply usually agrees, disagrees, or adds a specific fact, not all three hedged together.",
+    "",
+  ];
+}
+
 function buildSystemPrompt(s, hasImages, hasAnnotations) {
   const lines = [
     "You score social posts for reply-worthiness and draft replies. You work for one person promoting their own genuine work. You are advisory only; a human reviews and posts everything by hand.",
@@ -128,19 +155,7 @@ function buildSystemPrompt(s, hasImages, hasAnnotations) {
     "== SCORING RUBRIC ==",
     s.rubric || "(No rubric set. Use: relevance to thesis, ability to add genuine value, author reachability.)",
     "",
-    "== VOICE (write replies to sound like these samples; match their restraint) ==",
-    s.voice ||
-      "(No voice samples set — paste 3-8 real posts/replies you've written into Voice samples in settings. Real examples beat any style instruction. Until then, default to plain, short, declarative sentences. No hype words, no exclamation points, no emojis, no hashtags.)",
-    "",
-    "== AVOID THESE AI TELLS ==",
-    '- Never use negative-parallelism / false-contrast framing: "It\'s not X, it\'s Y", "Not just X, but Y", "X isn\'t about Y — it\'s about Z". State the point once, directly.',
-    "- No aphoristic one-line \"wisdom\" closers (e.g. \"Real research starts with a question, not a conclusion.\"). If the post doesn't warrant a substantive reply, it doesn't get one — don't manufacture profundity.",
-    "- Skip AI-coded vocabulary: delve, tapestry, testament, beacon, realm, elevate, foster, leverage, unpack, underscore, navigate, landscape, resonate, seamless, robust, holistic.",
-    "- No em dash used as a dramatic pivot. Use a period or comma instead.",
-    "- No throat-clearing openers (\"Great point\", \"Interesting question\", \"I think\").",
-    "- Don't glue sentences with transition words (moreover, furthermore, additionally). Most consecutive sentences need no connector.",
-    "- Vary sentence length and rhythm within a reply — real writing is uneven, not uniformly polished.",
-    "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
+    ...buildVoiceAndTellsSection(s),
     "- Across a batch of replies, don't reuse the same rhetorical move in every one (e.g. always closing on \"a mentor would help you...\"). If you notice yourself repeating a structure, use a different one or write nothing.",
     "",
   ];
@@ -574,6 +589,9 @@ function buildDigestSystemPrompt(s, preFiltered) {
     "== WHAT TO SURFACE (in their own words) ==",
     s.digestFocus || "(No digest focus set. Default: unusual engagement, notable industry debates, and anything a competitor or well-known account announced.)",
     "",
+    "The voice and AI-tell rules below apply ONLY to draft.text — the actual reply/post you're writing. Item summaries and whyCare stay neutral, third-person, factual description; they are not written in the user's voice.",
+    "",
+    ...buildVoiceAndTellsSection(s),
     "== HARD RULES ==",
     "- Pick at most 8 items, fewer if fewer genuinely qualify. Never pad with filler just to hit a count.",
     "- Skip engagement-bait, giveaways, and anything that's just farming replies or quote-tweets.",
@@ -586,6 +604,7 @@ function buildDigestSystemPrompt(s, preFiltered) {
       : "",
     "",
     "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input, with NO reference to any specific person, post, or account. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
+    "- draft.text: 1-3 sentences, plain words. It should read like a knowledgeable person talking, not a lab statement or a press release.",
     "- These are mutually exclusive, not a spectrum: if the draft names a specific person, quotes them, paraphrases their specific point, or is otherwise clearly reacting to one identifiable post, it IS a reply — type must be \"reply\" with that post's url, and that post must appear in items so the reader can see what's being replied to. type \"post\" is ONLY for an idea that stands on its own with zero assumed context — the reader must be able to understand it without seeing any other tweet. Never write a \"post\" that name-drops someone or paraphrases their tweet; that's a reply wearing a post's label.",
     "- Also give that draft a one-sentence \"today's move\" framing: why this specific reply/post, out of everything in the digest, is the one worth acting on today.",
     "- items may end up empty (nothing cleared the bar for a full digest card) — that's fine. draft is a separate, independent requirement and is still mandatory even when items is empty.",
