@@ -79,7 +79,7 @@
   cursor: pointer;
 }
 .rs-scan:hover { background: #362aa6; }
-.rs-scan:disabled { background: #d9d3e8; color: #fff; cursor: default; }
+.rs-scan:disabled { background: #ece8fc; color: #6b5fae; cursor: default; }
 
 .rs-scan-quiet {
   margin-top: 8px;
@@ -88,7 +88,7 @@
   border: 1px solid #e4dccf;
 }
 .rs-scan-quiet:hover { border-color: #4b3ddb; background: #ffffff; }
-.rs-scan-quiet:disabled { color: #b6afc2; border-color: #f0e9dd; }
+.rs-scan-quiet:disabled { background: #f4efe6; color: #8a8394; border-color: #e4dccf; }
 
 .rs-status {
   margin: 10px 2px 4px;
