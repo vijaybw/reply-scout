@@ -17,7 +17,40 @@ const {
   parseDigestResult,
   draftLeaksSpecificPost,
   looksLikeGarbageOcr,
+  buildSystemPrompt,
+  buildDigestSystemPrompt,
 } = require("../background.js");
+
+test("buildDigestSystemPrompt: includes the user's actual voice samples", () => {
+  const s = { voice: "A distinctive sample sentence nobody else would write." };
+  const prompt = buildDigestSystemPrompt(s, false);
+  assert.match(prompt, /A distinctive sample sentence nobody else would write\./);
+});
+
+test("buildDigestSystemPrompt: includes the AI-tells guardrails", () => {
+  const prompt = buildDigestSystemPrompt({}, false);
+  assert.match(prompt, /AVOID THESE AI TELLS/);
+  assert.match(prompt, /delve, tapestry/);
+  assert.match(prompt, /never "we"/);
+});
+
+test("buildDigestSystemPrompt: scopes voice/tells to draft.text, not item summaries", () => {
+  const prompt = buildDigestSystemPrompt({}, false);
+  assert.match(prompt, /apply ONLY to draft\.text/);
+});
+
+test("buildSystemPrompt: still includes voice samples and AI-tells after the shared-section refactor", () => {
+  const s = { voice: "Another distinctive sample line." };
+  const prompt = buildSystemPrompt(s, false, false);
+  assert.match(prompt, /Another distinctive sample line\./);
+  assert.match(prompt, /AVOID THESE AI TELLS/);
+  assert.match(prompt, /delve, tapestry/);
+});
+
+test("buildSystemPrompt: falls back to the no-voice default when voice is unset", () => {
+  const prompt = buildSystemPrompt({}, false, false);
+  assert.match(prompt, /No voice samples set/);
+});
 
 test("parseResults: plain JSON array", () => {
   const out = parseResults('[{"id":"rs-1","score":7,"reason":"ok","reply":"hi"}]');

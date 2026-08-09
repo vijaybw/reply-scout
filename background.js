@@ -874,5 +874,8 @@ if (typeof module !== "undefined" && module.exports) {
     looksLikeGarbageOcr,
     extractOcrText,
     ocrPromptFor,
+    buildVoiceAndTellsSection,
+    buildSystemPrompt,
+    buildDigestSystemPrompt,
   };
 }
