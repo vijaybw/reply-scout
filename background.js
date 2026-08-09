@@ -571,14 +571,15 @@ function buildDigestSystemPrompt(s) {
     "- Two-line summary: what the post actually says, specific, not vague hype.",
     "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
     "",
-    "- After picking the items, draft ONE actual, ready-to-send piece of writing grounded in them: either a reply to whichever single item is most worth responding to, or (if none is genuinely worth a reply) a standalone post idea. Write real, specific text — not a description of what a reply/post could say.",
+    "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
     "- Also give that draft a one-sentence \"today's move\" framing: why this specific reply/post, out of everything in the digest, is the one worth acting on today.",
+    "- items may end up empty (nothing cleared the bar for a full digest card) — that's fine. draft is a separate, independent requirement and is still mandatory even when items is empty.",
     "",
     "== OUTPUT ==",
     "Respond with ONLY a JSON object, no prose, no markdown fences:",
     '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "draft": {"type": "reply", "url": "<url of the item this replies to, must match one of the items above>", "why": "<one-sentence today\'s-move framing>", "text": "<the actual drafted reply>"} }',
     'Or, if a standalone post fits better than a reply to any single item: {"items": [...], "draft": {"type": "post", "why": "<one-sentence today\'s-move framing>", "text": "<the actual drafted post>"} }',
-    "If nothing in the input genuinely qualifies for items, return an empty items array and draft: null.",
+    "draft.url must always be one of the urls in items — if you want to reply to a post that didn't make the items list, add it to items too (a short summary/whyCare is easy to write for it).",
   ].join("\n");
 }
 
@@ -766,7 +767,31 @@ async function generateDigest(posts, requestId, tabId) {
   const text = s.provider === "local"
     ? await callLocal(s, systemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
     : await callAnthropic(s, systemPrompt, userContent);
-  const digest = parseDigestResult(text);
+  let digest = parseDigestResult(text);
+
+  // The prompt mandates a draft whenever there's at least one candidate post
+  // (which is guaranteed here), but local models occasionally drop it anyway.
+  // One retry with a sharper, explicit nudge is enough in practice — cheaper
+  // than leaving the digest without its one actionable takeaway.
+  if (!digest.draft) {
+    try {
+      const retrySystemPrompt =
+        systemPrompt +
+        "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
+      const retryText = s.provider === "local"
+        ? await callLocal(s, retrySystemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
+        : await callAnthropic(s, retrySystemPrompt, userContent);
+      const retryDigest = parseDigestResult(retryText);
+      if (retryDigest.draft) {
+        digest = {
+          items: retryDigest.items.length ? retryDigest.items : digest.items,
+          draft: retryDigest.draft,
+        };
+      }
+    } catch (_) {
+      // Leave digest.draft null — better to show a digest without one than to fail it entirely.
+    }
+  }
 
   const now = Date.now();
   for (const item of digest.items) {
