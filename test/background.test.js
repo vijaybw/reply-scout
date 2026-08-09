@@ -44,6 +44,11 @@ test("buildDigestSystemPrompt: scopes voice/tells to draft.text, not item summar
   assert.match(prompt, /apply ONLY to draft\.text/);
 });
 
+test("buildDigestSystemPrompt: forbids inventing facts about the user's own team/process", () => {
+  const prompt = buildDigestSystemPrompt({}, false);
+  assert.match(prompt, /Never invent facts, numbers, outcomes, or specifics about the user's own team/);
+});
+
 test("buildSystemPrompt: still includes voice samples and AI-tells after the shared-section refactor", () => {
   const s = { voice: "Another distinctive sample line." };
   const prompt = buildSystemPrompt(s, false, false);
