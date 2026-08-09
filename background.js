@@ -571,7 +571,8 @@ function buildDigestSystemPrompt(s) {
     "- Two-line summary: what the post actually says, specific, not vague hype.",
     "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
     "",
-    "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
+    "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input, with NO reference to any specific person, post, or account. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
+    "- These are mutually exclusive, not a spectrum: if the draft names a specific person, quotes them, paraphrases their specific point, or is otherwise clearly reacting to one identifiable post, it IS a reply — type must be \"reply\" with that post's url, and that post must appear in items so the reader can see what's being replied to. type \"post\" is ONLY for an idea that stands on its own with zero assumed context — the reader must be able to understand it without seeing any other tweet. Never write a \"post\" that name-drops someone or paraphrases their tweet; that's a reply wearing a post's label.",
     "- Also give that draft a one-sentence \"today's move\" framing: why this specific reply/post, out of everything in the digest, is the one worth acting on today.",
     "- items may end up empty (nothing cleared the bar for a full digest card) — that's fine. draft is a separate, independent requirement and is still mandatory even when items is empty.",
     "",
@@ -673,6 +674,20 @@ function parseDigestResult(text) {
   return { items, draft };
 }
 
+// A "post" draft that names or paraphrases a specific person's post is
+// actually a reply wearing a post's label — the model sometimes does this
+// despite the prompt rule against it. Cheap heuristic: does the draft text
+// contain any candidate's handle or display name?
+function draftLeaksSpecificPost(draft, candidates) {
+  if (!draft || draft.type !== "post" || !draft.text) return false;
+  const text = draft.text.toLowerCase();
+  return candidates.some((p) => {
+    const handle = (p.handle || "").replace(/^@/, "").trim().toLowerCase();
+    const author = (p.author || "").trim().toLowerCase();
+    return (handle.length > 2 && text.includes(handle)) || (author.length > 2 && text.includes(author));
+  });
+}
+
 // Loads the "already digested" url -> timestamp map, dropping anything older
 // than DIGEST_HISTORY_DAYS so it doesn't grow forever or exclude things
 // you'd reasonably want to see again after a few days.
@@ -770,26 +785,32 @@ async function generateDigest(posts, requestId, tabId) {
   let digest = parseDigestResult(text);
 
   // The prompt mandates a draft whenever there's at least one candidate post
-  // (which is guaranteed here), but local models occasionally drop it anyway.
-  // One retry with a sharper, explicit nudge is enough in practice — cheaper
-  // than leaving the digest without its one actionable takeaway.
-  if (!digest.draft) {
+  // (which is guaranteed here), but local models occasionally drop it anyway,
+  // or mislabel a reply-in-disguise as a standalone "post" (naming/paraphrasing
+  // a specific person without linking their tweet). One retry with a sharper,
+  // targeted nudge is enough in practice — cheaper than shipping either failure.
+  const leaked = draftLeaksSpecificPost(digest.draft, candidates);
+  if (!digest.draft || leaked) {
     try {
-      const retrySystemPrompt =
-        systemPrompt +
-        "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
+      const nudge = leaked
+        ? "\n\nYour previous \"draft\" was type \"post\" but named or paraphrased a specific person's post — that makes it a reply, not a standalone post. Fix it: either set type to \"reply\" with that post's url (and add that post to items so it's visible), or rewrite it as a truly standalone idea with no reference to anyone specific."
+        : "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
+      const retrySystemPrompt = systemPrompt + nudge;
       const retryText = s.provider === "local"
         ? await callLocal(s, retrySystemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
         : await callAnthropic(s, retrySystemPrompt, userContent);
       const retryDigest = parseDigestResult(retryText);
-      if (retryDigest.draft) {
+      if (retryDigest.draft && !draftLeaksSpecificPost(retryDigest.draft, candidates)) {
         digest = {
           items: retryDigest.items.length ? retryDigest.items : digest.items,
           draft: retryDigest.draft,
         };
+      } else if (leaked) {
+        digest = { items: digest.items, draft: null }; // still mislabeled (or nothing usable) — drop it rather than ship it
       }
     } catch (_) {
-      // Leave digest.draft null — better to show a digest without one than to fail it entirely.
+      if (leaked) digest = { items: digest.items, draft: null };
+      // otherwise leave digest.draft null — better to show a digest without one than to fail it entirely
     }
   }
 
