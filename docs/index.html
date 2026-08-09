@@ -79,12 +79,11 @@
   .btn-quiet:hover{border-color:var(--indigo);}
 
   .hero-art{position:relative;display:flex;justify-content:center;}
-  .hero-art .frame{
-    background:#10161c;border-radius:20px;padding:14px;
-    box-shadow:0 30px 70px rgba(75,61,219,0.18), 0 8px 24px rgba(32,27,43,0.12);
+  .hero-art img{
+    width:320px;max-width:100%;display:block;border-radius:16px;
     transform:rotate(1deg);
+    filter:drop-shadow(0 26px 50px rgba(75,61,219,0.22)) drop-shadow(0 6px 16px rgba(32,27,43,0.10));
   }
-  .hero-art img{width:320px;max-width:100%;display:block;border-radius:10px;}
 
   section{padding:60px 0;}
   section.tint{background:var(--cream-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
@@ -178,9 +177,7 @@
         </div>
       </div>
       <div class="hero-art">
-        <div class="frame">
-          <img src="assets/panel-preview.png" alt="Reply Scout panel showing two scored posts with drafted replies">
-        </div>
+        <img src="assets/panel-preview.png" alt="Reply Scout panel showing two scored posts with drafted replies">
       </div>
     </div>
   </div>
