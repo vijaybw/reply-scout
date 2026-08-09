@@ -149,17 +149,18 @@
 }
 /* Pill-shaped buttons: an outset ring on a border-radius:999px shape reads
    as a detached, broken-looking halo. Inset instead, so it hugs the pill.
-   Explicitly reset plain :focus first -- some browsers paint a native
-   default ring on buttons that isn't otherwise fully suppressed just by
-   overriding :focus-visible. */
+   box-shadow instead of outline -- outline with a negative offset on a
+   heavily-rounded shape repaints unreliably on hover in some browsers
+   (visible as a flicker when the pointer sits over the button); box-shadow
+   follows border-radius natively and paints as a stable, single layer. */
 .rs-scan:focus,
 .rs-btn:focus {
   outline: none;
 }
 .rs-scan:focus-visible,
 .rs-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -3px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .rs-icon-btn {
@@ -198,6 +199,7 @@
   font-weight: 700;
   font-size: 13px;
   cursor: pointer;
+  text-align: center;
 }
 .rs-scan:hover { background: var(--accent-hover); }
 .rs-scan:disabled { background: var(--accent-disabled-bg); color: var(--accent-disabled-text); cursor: default; }
@@ -289,6 +291,7 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  text-align: center;
 }
 .rs-btn:hover { background: var(--accent-hover); }
 
