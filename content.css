@@ -222,6 +222,35 @@
 .rs-status.rs-busy { color: var(--accent); }
 .rs-status.rs-done { color: var(--score-high-text); }
 
+/* A small pulsing dot ahead of any "working" text (busy status line, and the
+   digest button while it's disabled/running) — a live, blinking indicator
+   instead of static text sitting there while a batch is scored or generated,
+   similar to a chat UI's "thinking" indicator. currentColor so it always
+   matches whatever text color the state already uses (busy accent color,
+   disabled-button text color, etc.) without its own theme wiring. */
+.rs-status.rs-busy::before,
+#rs-digest-btn:disabled::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  animation: rs-pulse 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-status.rs-busy::before,
+  #rs-digest-btn:disabled::before {
+    animation: none;
+  }
+}
+@keyframes rs-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.75); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
 .rs-results { margin-top: 8px; display: flex; flex-direction: column; gap: 9px; }
 
 .rs-card {

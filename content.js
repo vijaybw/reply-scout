@@ -762,9 +762,16 @@
 
   // Progress pings from background.js during the multi-batch reduce pass
   // (see reportDigestProgress in background.js) — best-effort UI only.
+  // `total` counts shortlist chunks plus one extra for the final reduce
+  // pass (see the "+1 for the final reduce pass" comment in background.js),
+  // so `done === total - 1` is the ping that fires right as shortlisting
+  // finishes and the actual digest-building call is about to start.
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === "DIGEST_PROGRESS" && digestInFlight) {
-      digestBtn.textContent = `Generating digest… batch ${msg.done}/${msg.total}`;
+      const { done, total } = msg;
+      digestBtn.textContent = done >= total - 1
+        ? "Building your digest…"
+        : `Skimming your feed… (batch ${done + 1} of ${total - 1})`;
     }
   });
 
