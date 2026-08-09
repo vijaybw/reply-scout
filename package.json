@@ -1,0 +1,8 @@
+{
+  "name": "reply-scout",
+  "private": true,
+  "description": "Chrome extension — dev tooling only, not published as an npm package.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

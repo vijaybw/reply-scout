@@ -468,6 +468,18 @@ async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTok
   return text;
 }
 
+// Picks the configured provider — the `s.provider === "local" ? callLocal(...)
+// : callAnthropic(...)` dispatch was repeated at every call site with slightly
+// different args; maxTokens/reasoningEffort are local-only concepts that
+// callAnthropic ignores (it has its own fixed max_tokens and no reasoning
+// controls), which is why they're just dropped on that branch rather than
+// threaded through.
+async function callModel(s, systemPrompt, userContent, { maxTokens, reasoningEffort } = {}) {
+  return s.provider === "local"
+    ? callLocal(s, systemPrompt, userContent, undefined, maxTokens, reasoningEffort)
+    : callAnthropic(s, systemPrompt, userContent);
+}
+
 function parseResults(text) {
   // Strip markdown fences and any <think>...</think> blocks reasoning models emit
   const clean = text
@@ -541,9 +553,7 @@ async function scorePosts(posts) {
   // crowd out the actual JSON output — observed truncating mid-response
   // and occasionally returning empty content otherwise. "low" effort keeps
   // it from over-thinking a style-constrained scoring/drafting task.
-  const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent, undefined, 3500, "low")
-    : await callAnthropic(s, systemPrompt, userContent);
+  const text = await callModel(s, systemPrompt, userContent, { maxTokens: 3500, reasoningEffort: "low" });
   return parseResults(text);
 }
 
@@ -645,7 +655,16 @@ function parseShortlistResult(text) {
   return []; // a malformed shortlist batch just contributes nothing, not a hard failure
 }
 
-function parseDigestResult(text) {
+// validUrls is the set of real, DOM-scraped post URLs sent as input for this
+// digest pass — never trust a url the model echoes back without checking it
+// against that set first. A model response is attacker-influenceable (a
+// crafted tweet attempting indirect prompt injection against the digest
+// model), and an unvalidated url here would land straight in an <a href>/
+// window.open() in content.js — a "javascript:" url there would execute in
+// the real, authenticated x.com page. Fail closed: default to an empty set
+// (rejects every url) rather than skipping the check if the caller forgets
+// to pass one.
+function parseDigestResult(text, validUrls = new Set()) {
   const clean = text
     .replace(/<think>[\s\S]*?<\/think>/gi, "")
     .replace(/```json|```/g, "")
@@ -662,7 +681,9 @@ function parseDigestResult(text) {
   if (!parsed || typeof parsed !== "object") {
     throw new Error("Could not parse the model's digest response as JSON. Try again, or a stronger model.");
   }
-  const items = Array.isArray(parsed.items) ? parsed.items.filter((i) => i && i.url) : [];
+  const items = Array.isArray(parsed.items)
+    ? parsed.items.filter((i) => i && typeof i.url === "string" && validUrls.has(i.url))
+    : [];
 
   let draft = null;
   const d = parsed.draft;
@@ -720,9 +741,7 @@ function reportDigestProgress(tabId, requestId, done, total) {
 async function shortlistChunk(s, chunk) {
   const systemPrompt = buildShortlistSystemPrompt(s);
   const userContent = buildDigestUserContent(chunk);
-  const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent, undefined, 3500, "low")
-    : await callAnthropic(s, systemPrompt, userContent);
+  const text = await callModel(s, systemPrompt, userContent, { maxTokens: 3500, reasoningEffort: "low" });
   return parseShortlistResult(text);
 }
 
@@ -784,10 +803,9 @@ async function generateDigest(posts, requestId, tabId) {
   // for compact per-post scoring JSON — observed truncating mid-response
   // (finish_reason "length") on real digests, which then fails to parse.
   const DIGEST_MAX_TOKENS = 3500;
-  const text = s.provider === "local"
-    ? await callLocal(s, systemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
-    : await callAnthropic(s, systemPrompt, userContent);
-  let digest = parseDigestResult(text);
+  const validUrls = new Set(candidates.map((p) => p.url).filter(Boolean));
+  const text = await callModel(s, systemPrompt, userContent, { maxTokens: DIGEST_MAX_TOKENS, reasoningEffort: "low" });
+  let digest = parseDigestResult(text, validUrls);
 
   // The prompt mandates a draft whenever there's at least one candidate post
   // (which is guaranteed here), but local models occasionally drop it anyway,
@@ -801,10 +819,8 @@ async function generateDigest(posts, requestId, tabId) {
         ? "\n\nYour previous \"draft\" was type \"post\" but named or paraphrased a specific person's post — that makes it a reply, not a standalone post. Fix it: either set type to \"reply\" with that post's url (and add that post to items so it's visible), or rewrite it as a truly standalone idea with no reference to anyone specific."
         : "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
       const retrySystemPrompt = systemPrompt + nudge;
-      const retryText = s.provider === "local"
-        ? await callLocal(s, retrySystemPrompt, userContent, undefined, DIGEST_MAX_TOKENS, "low")
-        : await callAnthropic(s, retrySystemPrompt, userContent);
-      const retryDigest = parseDigestResult(retryText);
+      const retryText = await callModel(s, retrySystemPrompt, userContent, { maxTokens: DIGEST_MAX_TOKENS, reasoningEffort: "low" });
+      const retryDigest = parseDigestResult(retryText, validUrls);
       if (retryDigest.draft && !draftLeaksSpecificPost(retryDigest.draft, candidates)) {
         digest = {
           items: retryDigest.items.length ? retryDigest.items : digest.items,
@@ -826,4 +842,18 @@ async function generateDigest(posts, requestId, tabId) {
   await chrome.storage.local.set({ [DIGEST_HISTORY_KEY]: history });
 
   return digest;
+}
+
+// Inert in the real extension (no `module` global in an MV3 service worker) —
+// exposes the pure, chrome-API-free functions for unit testing under Node.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    parseResults,
+    parseShortlistResult,
+    parseDigestResult,
+    draftLeaksSpecificPost,
+    looksLikeGarbageOcr,
+    extractOcrText,
+    ocrPromptFor,
+  };
 }

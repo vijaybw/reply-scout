@@ -36,7 +36,7 @@ A separate, one-click feature answering a different question than reply-scoring:
 
 1. Open `x.com/home` or a List.
 2. Click **Generate digest** in the panel. The page scrolls itself, loading posts at a human-like pace, until it's collected ~120 or the feed runs out.
-3. Once enough posts are in, get up to 8 items — link, two-line summary, why it matters — plus one suggested reply or post idea for today.
+3. Once enough posts are in, get up to 8 items — link, two-line summary, why it matters — plus **Today's move**: one ready-to-send draft, either a reply to whichever single post is most worth responding to, or a standalone post idea if nothing individually qualifies. Copy it straight from the panel.
 
 Configure what it looks for in settings → **Digest focus** (prefilled with a starter framing; edit it to match your own role and interests — it's your words, not a fixed rubric).
 

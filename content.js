@@ -635,6 +635,22 @@
     return Array.from(collected.values());
   }
 
+  // Defense in depth: background.js already restricts digest item/draft urls
+  // to the real posts sent as input (see validUrls in generateDigest), but
+  // this is the last line before a url becomes a clickable href/window.open
+  // target in a real, authenticated x.com page — worth checking again here
+  // rather than trusting that upstream validation never regresses.
+  function isSafeXUrl(url) {
+    if (typeof url !== "string") return false;
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "https:") return false;
+      return ["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(u.hostname);
+    } catch (_) {
+      return false;
+    }
+  }
+
   function renderDigest(digest, sourcePosts) {
     const byUrl = new Map(sourcePosts.map((p) => [p.url, p]));
     digestEl.innerHTML = "";
@@ -648,6 +664,7 @@
     }
 
     digest.items.forEach((item) => {
+      if (!isSafeXUrl(item.url)) return; // shouldn't happen — background.js already validates — but never render an unsafe href
       const src = byUrl.get(item.url);
       const card = document.createElement("div");
       card.className = "rs-digest-item";
@@ -711,11 +728,11 @@
       });
       row.appendChild(copyBtn);
 
-      if (isReply && digest.draft.url) {
+      if (isReply && isSafeXUrl(digest.draft.url)) {
         const openBtn = document.createElement("button");
         openBtn.className = "rs-btn rs-btn-quiet";
         openBtn.textContent = "Open post";
-        openBtn.addEventListener("click", () => window.open(digest.draft.url, "_blank"));
+        openBtn.addEventListener("click", () => window.open(digest.draft.url, "_blank", "noopener,noreferrer"));
         row.appendChild(openBtn);
       }
       card.appendChild(row);
@@ -883,7 +900,7 @@
           const openBtn = document.createElement("button");
           openBtn.className = "rs-btn rs-btn-quiet";
           openBtn.textContent = "Open post";
-          openBtn.addEventListener("click", () => window.open(p.url, "_blank"));
+          openBtn.addEventListener("click", () => window.open(p.url, "_blank", "noopener,noreferrer"));
           row.appendChild(openBtn);
         }
 
