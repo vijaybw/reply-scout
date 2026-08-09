@@ -44,12 +44,14 @@
   const EMPTY_SCAN_STREAK_THRESHOLD = 3; // consecutive zero-article scans before warning
   const PENDING_CAP = 150;       // stop queuing new posts past this — bounds the backlog if scoring can't keep up with scroll speed
 
-  // Was 120 — cut down given real-world local-model disconnect frequency:
-  // digest processes chunks strictly sequentially (no parallelism), so every
-  // extra chunk directly multiplies worst-case wait time when retries are
-  // common. 45 keeps it to ~2 shortlist chunks + 1 reduce pass instead of ~5.
-  const DIGEST_SCROLL_TARGET = 45;
-  const DIGEST_SCROLL_MAX_STEPS = 60; // hard cap regardless of target, in case posts are sparse
+  // Was 120, cut to 45 given real-world local-model disconnect frequency at
+  // the time — digest processes chunks strictly sequentially (no
+  // parallelism), so every extra chunk directly multiplies worst-case wait
+  // time when retries are common. Raised to 60 (~2-3 shortlist chunks + 1
+  // reduce pass, still well short of the ~5-chunk territory that caused
+  // trouble at 120) now that the pipeline has been running reliably.
+  const DIGEST_SCROLL_TARGET = 60;
+  const DIGEST_SCROLL_MAX_STEPS = 80; // hard cap regardless of target, in case posts are sparse
   const DIGEST_SCROLL_STALL_LIMIT = 5; // stop early if this many consecutive steps add nothing new
   const DIGEST_SCROLL_STEP_DELAY = 1400; // ms between scroll steps — human-like pace, lets content load
 
