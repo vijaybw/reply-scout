@@ -643,7 +643,7 @@
     if (digest.items.length === 0) {
       const empty = document.createElement("div");
       empty.className = "rs-digest-empty";
-      empty.textContent = "Nothing new stood out from what's currently on screen.";
+      empty.textContent = digest.emptyMessage || "Nothing new stood out from what's currently on screen.";
       frag.appendChild(empty);
     }
 
@@ -666,14 +666,51 @@
       frag.appendChild(card);
     });
 
-    if (digest.suggestion) {
-      const suggestion = document.createElement("div");
-      suggestion.className = "rs-digest-suggestion";
-      const strong = document.createElement("strong");
-      strong.textContent = "Today's move: ";
-      suggestion.appendChild(strong);
-      suggestion.appendChild(document.createTextNode(digest.suggestion));
-      frag.appendChild(suggestion);
+    if (digest.draft) {
+      const isReply = digest.draft.type === "reply";
+      const src = isReply ? byUrl.get(digest.draft.url) : null;
+
+      const card = document.createElement("div");
+      card.className = "rs-digest-suggestion";
+
+      const label = document.createElement("strong");
+      label.className = "rs-digest-suggestion-label";
+      label.textContent = isReply
+        ? `Reply worth sending${src ? ` — to ${src.author} ${src.handle}`.trim() : ""}`
+        : "A post worth sending today";
+      card.appendChild(label);
+
+      const ta = document.createElement("textarea");
+      ta.className = "rs-reply";
+      ta.readOnly = true;
+      ta.rows = 3;
+      ta.value = digest.draft.text;
+      card.appendChild(ta);
+
+      const row = document.createElement("div");
+      row.className = "rs-actions";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "rs-btn";
+      copyBtn.textContent = "Copy";
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(ta.value).then(() => {
+          copyBtn.textContent = "Copied";
+          setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+        });
+      });
+      row.appendChild(copyBtn);
+
+      if (isReply && digest.draft.url) {
+        const openBtn = document.createElement("button");
+        openBtn.className = "rs-btn rs-btn-quiet";
+        openBtn.textContent = "Open post";
+        openBtn.addEventListener("click", () => window.open(digest.draft.url, "_blank"));
+        row.appendChild(openBtn);
+      }
+      card.appendChild(row);
+
+      frag.appendChild(card);
     }
 
     digestEl.appendChild(frag);

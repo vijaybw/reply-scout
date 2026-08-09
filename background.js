@@ -571,10 +571,13 @@ function buildDigestSystemPrompt(s) {
     "- Two-line summary: what the post actually says, specific, not vague hype.",
     "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
     "",
+    "- After picking the items, draft ONE actual, ready-to-send piece of writing grounded in them: either a reply to whichever single item is most worth responding to, or (if none is genuinely worth a reply) a standalone post idea. Write real, specific text — not a description of what a reply/post could say.",
+    "",
     "== OUTPUT ==",
     "Respond with ONLY a JSON object, no prose, no markdown fences:",
-    '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "suggestion": "<one reply or post idea for today, grounded in what\'s in this digest>"}',
-    "If nothing in the input genuinely qualifies, return an empty items array and a brief suggestion noting that nothing stood out.",
+    '{"items": [{"url": "<url from input>", "summary": "<two-line summary>", "whyCare": "<one sentence>"}], "draft": {"type": "reply", "url": "<url of the item this replies to, must match one of the items above>", "text": "<the actual drafted reply>"} }',
+    'Or, if a standalone post fits better than a reply to any single item: {"items": [...], "draft": {"type": "post", "text": "<the actual drafted post>"} }',
+    "If nothing in the input genuinely qualifies for items, return an empty items array and draft: null.",
   ].join("\n");
 }
 
@@ -653,8 +656,18 @@ function parseDigestResult(text) {
     throw new Error("Could not parse the model's digest response as JSON. Try again, or a stronger model.");
   }
   const items = Array.isArray(parsed.items) ? parsed.items.filter((i) => i && i.url) : [];
-  const suggestion = typeof parsed.suggestion === "string" ? parsed.suggestion : "";
-  return { items, suggestion };
+
+  let draft = null;
+  const d = parsed.draft;
+  if (d && typeof d === "object" && typeof d.text === "string" && d.text.trim()) {
+    if (d.type === "reply" && typeof d.url === "string" && items.some((i) => i.url === d.url)) {
+      draft = { type: "reply", url: d.url, text: d.text };
+    } else if (d.type === "post") {
+      draft = { type: "post", text: d.text };
+    }
+  }
+
+  return { items, draft };
 }
 
 // Loads the "already digested" url -> timestamp map, dropping anything older
@@ -704,7 +717,8 @@ async function generateDigest(posts, requestId, tabId) {
   if (fresh.length === 0) {
     return {
       items: [],
-      suggestion: "Nothing new since your last digest — everything currently on screen was already surfaced recently.",
+      draft: null,
+      emptyMessage: "Nothing new since your last digest — everything currently on screen was already surfaced recently.",
     };
   }
 
@@ -736,14 +750,14 @@ async function generateDigest(posts, requestId, tabId) {
     candidates = Array.from(shortlisted.values());
     reportDigestProgress(tabId, requestId, chunks.length, chunks.length + 1);
     if (candidates.length === 0) {
-      return { items: [], suggestion: "Nothing stood out across the posts scanned." };
+      return { items: [], draft: null, emptyMessage: "Nothing stood out across the posts scanned." };
     }
   }
 
   const systemPrompt = buildDigestSystemPrompt(s);
   const userContent = buildDigestUserContent(candidates);
-  // Formatting up to 8 items (url + summary + whyCare each, plus a closing
-  // suggestion) genuinely needs more room than the 2000-token default used
+  // Formatting up to 8 items (url + summary + whyCare each, plus a drafted
+  // reply/post) genuinely needs more room than the 2000-token default used
   // for compact per-post scoring JSON — observed truncating mid-response
   // (finish_reason "length") on real digests, which then fails to parse.
   const DIGEST_MAX_TOKENS = 3500;

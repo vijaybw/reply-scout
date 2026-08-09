@@ -401,4 +401,10 @@ article.rs-flash {
   color: var(--text);
   font-size: 13px;
 }
-.rs-digest-suggestion strong { color: var(--score-high-text); }
+.rs-digest-suggestion-label {
+  display: block;
+  color: var(--score-high-text);
+  margin-bottom: 6px;
+}
+.rs-digest-suggestion .rs-reply { margin-top: 0; }
+.rs-digest-suggestion .rs-actions { margin-top: 8px; }
