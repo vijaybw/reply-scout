@@ -14,6 +14,33 @@
       --accent-hover: #362aa6;
       --ok: #127a5f;
       --input-bg: #fbf8f3;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:where(:not([data-theme="light"])) {
+        --bg: #15131f;
+        --card: #1e1b2a;
+        --line: #322d42;
+        --text: #edeaf7;
+        --muted: #8c85a0;
+        --accent: #7c6ff0;
+        --accent-hover: #9186f5;
+        --ok: #4fd9b0;
+        --input-bg: #17141f;
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #15131f;
+      --card: #1e1b2a;
+      --line: #322d42;
+      --text: #edeaf7;
+      --muted: #8c85a0;
+      --accent: #7c6ff0;
+      --accent-hover: #9186f5;
+      --ok: #4fd9b0;
+      --input-bg: #17141f;
+      color-scheme: dark;
     }
     * { box-sizing: border-box; }
     body {
@@ -67,12 +94,35 @@
     button.save:hover { background: var(--accent-hover); }
     #status { margin-left: 12px; color: var(--ok); font-size: 13px; }
     .footer-note { color: var(--muted); font-size: 12.5px; margin-top: 20px; }
+    .top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .theme-toggle {
+      flex: none; width: 38px; height: 38px; border-radius: 999px;
+      border: 1px solid var(--line); background: var(--card); color: var(--muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+    .theme-toggle .i-sun { display: none; }
+    :root[data-theme="dark"] .theme-toggle .i-moon { display: none; }
+    :root[data-theme="dark"] .theme-toggle .i-sun { display: block; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .theme-toggle .i-moon { display: none; }
+      :root:not([data-theme="light"]) .theme-toggle .i-sun { display: block; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Reply Scout settings</h1>
-    <p class="sub">The brain of your scanner: one key, one thesis, one rubric, one voice. Everything stays in this browser's local extension storage.</p>
+    <div class="top-row">
+      <div>
+        <h1>Reply Scout settings</h1>
+        <p class="sub">The brain of your scanner: one key, one thesis, one rubric, one voice. Everything stays in this browser's local extension storage.</p>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+    </div>
 
     <div class="card">
       <label style="margin:0">Draft quality</label>
@@ -163,6 +213,30 @@
 
     <p class="footer-note">Reply Scout never posts, likes, or follows for you. It scores and drafts; you decide.</p>
   </div>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      var btn = document.getElementById("themeToggle");
+      function apply(theme) {
+        if (theme === "dark" || theme === "light") root.setAttribute("data-theme", theme);
+      }
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get({ theme: "" }, function (s) { apply(s.theme); });
+      }
+      function current() {
+        var attr = root.getAttribute("data-theme");
+        if (attr) return attr;
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      btn.addEventListener("click", function () {
+        var next = current() === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ theme: next });
+        }
+      });
+    })();
+  </script>
   <script src="options.js"></script>
 </body>
 </html>

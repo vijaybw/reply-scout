@@ -76,11 +76,12 @@
     }
   }
 
-  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true }).then((s) => {
+  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true, theme: "" }).then((s) => {
     autoScan = s.autoScan;
     hideBelow = s.hideBelow;
     minScore = parseFloat(s.minScore) || 6;
     warnLayoutChange = s.warnLayoutChange;
+    if (s.theme === "dark" || s.theme === "light") panel.setAttribute("data-theme", s.theme);
     updateAutoUI();
     updateFilterUI();
     updatePageGate();
@@ -467,6 +468,10 @@
     <div class="rs-header">
       <span class="rs-title">Reply Scout</span>
       <span class="rs-header-actions">
+        <button class="rs-icon-btn" id="rs-theme" title="Toggle dark mode">
+          <svg class="rs-i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="rs-i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
         <button class="rs-linklike" id="rs-settings" title="Open settings">Settings</button>
         <button class="rs-linklike" id="rs-collapse" title="Collapse">–</button>
       </span>
@@ -495,6 +500,14 @@
   const statusEl = panel.querySelector("#rs-status");
   const resultsEl = panel.querySelector("#rs-results");
   const autoToggle = panel.querySelector("#rs-auto");
+
+  panel.querySelector("#rs-theme").addEventListener("click", () => {
+    const isDark = panel.getAttribute("data-theme") === "dark"
+      || (!panel.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const next = isDark ? "light" : "dark";
+    panel.setAttribute("data-theme", next);
+    chrome.storage.local.set({ theme: next });
+  });
 
   panel.querySelector("#rs-settings").addEventListener("click", () => {
     chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });

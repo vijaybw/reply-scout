@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reply Scout — score your feed, draft in your voice, post by hand</title>
 <meta name="description" content="A Chrome extension for x.com that scores your feed against your own thesis and rubric, then drafts replies in your voice. You review and post by hand.">
+<script>
+  // Applied before first paint so there's no flash of the wrong theme.
+  (function () {
+    try {
+      var saved = localStorage.getItem("reply-scout-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -13,11 +24,39 @@
     --ink:#201B2B; --text-2:#665f73; --text-3:#8a8394;
     --indigo:#4B3DDB; --indigo-mid:#6353E8; --indigo-deep:#362AA6; --indigo-tint:#ECE8FC;
     --coral:#FF6B57; --coral-deep:#F0533C; --coral-tint:#FFE6E0;
-    --amber:#FFB23E; --amber-tint:#FFF3DC;
-    --teal:#2FB592; --teal-tint:#E3F5EF;
+    --amber:#FFB23E; --amber-tint:#FFF3DC; --amber-ink:#9a6100;
+    --teal:#2FB592; --teal-tint:#E3F5EF; --teal-ink:#127a5f;
+    --blob-a:#E7E1FB; --blob-b:#FFE1D8;
+    --shadow-1:rgba(75,61,219,0.22); --shadow-2:rgba(32,27,43,0.10);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      --cream:#15131f; --cream-2:#1a1726; --card:#1e1b2a; --line:#322d42;
+      --ink:#EDEAF7; --text-2:#b3acc4; --text-3:#8c85a0;
+      --indigo:#7C6FF0; --indigo-mid:#9186F5; --indigo-deep:#9186F5; --indigo-tint:#2b2650;
+      --coral:#FF8A78; --coral-deep:#FFA695; --coral-tint:#3a2430;
+      --amber:#FFC15C; --amber-tint:#3a2f14; --amber-ink:#ffc15c;
+      --teal:#4FD9B0; --teal-tint:#16342c; --teal-ink:#4fd9b0;
+      --blob-a:#2b2650; --blob-b:#3a2430;
+      --shadow-1:rgba(124,111,240,0.28); --shadow-2:rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --cream:#15131f; --cream-2:#1a1726; --card:#1e1b2a; --line:#322d42;
+    --ink:#EDEAF7; --text-2:#b3acc4; --text-3:#8c85a0;
+    --indigo:#7C6FF0; --indigo-mid:#9186F5; --indigo-deep:#9186F5; --indigo-tint:#2b2650;
+    --coral:#FF8A78; --coral-deep:#FFA695; --coral-tint:#3a2430;
+    --amber:#FFC15C; --amber-tint:#3a2f14; --amber-ink:#ffc15c;
+    --teal:#4FD9B0; --teal-tint:#16342c; --teal-ink:#4fd9b0;
+    --blob-a:#2b2650; --blob-b:#3a2430;
+    --shadow-1:rgba(124,111,240,0.28); --shadow-2:rgba(0,0,0,0.35);
+    color-scheme: dark;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;background:var(--cream);color:var(--ink);}
+  body{transition:background-color .15s ease, color .15s ease;}
   body{
     font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     line-height:1.6;-webkit-font-smoothing:antialiased;
@@ -38,13 +77,29 @@
     border:1px solid var(--line);padding:8px 16px;border-radius:999px;background:var(--card);
   }
   .top a.gh:hover{border-color:var(--indigo);}
+  .top-actions{display:flex;align-items:center;gap:10px;}
+  .theme-toggle{
+    width:38px;height:38px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--text-2);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+  }
+  .theme-toggle:hover{border-color:var(--indigo);color:var(--indigo);}
+  .theme-toggle svg{width:18px;height:18px;}
+  .theme-toggle .i-sun{display:none;}
+  :root[data-theme="dark"] .theme-toggle .i-moon{display:none;}
+  :root[data-theme="dark"] .theme-toggle .i-sun{display:block;}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .i-moon{display:none;}
+    :root:not([data-theme="light"]) .theme-toggle .i-sun{display:block;}
+  }
 
   .hero{position:relative;padding:72px 0 96px;overflow:hidden;}
   .blob{
     position:absolute;top:-160px;left:50%;transform:translateX(-38%);
     width:820px;height:520px;border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #E7E1FB, transparent 60%),
-               radial-gradient(circle at 70% 60%, #FFE1D8, transparent 55%);
+    background:radial-gradient(circle at 30% 30%, var(--blob-a), transparent 60%),
+               radial-gradient(circle at 70% 60%, var(--blob-b), transparent 55%);
     filter:blur(10px);opacity:0.9;z-index:0;
   }
   .hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;}
@@ -82,7 +137,7 @@
   .hero-art img{
     width:320px;max-width:100%;display:block;border-radius:16px;
     transform:rotate(1deg);
-    filter:drop-shadow(0 26px 50px rgba(75,61,219,0.22)) drop-shadow(0 6px 16px rgba(32,27,43,0.10));
+    filter:drop-shadow(0 26px 50px var(--shadow-1)) drop-shadow(0 6px 16px var(--shadow-2));
   }
 
   section{padding:60px 0;}
@@ -103,7 +158,7 @@
   }
   .step:nth-child(1) .n{background:var(--indigo-tint);color:var(--indigo-deep);}
   .step:nth-child(2) .n{background:var(--coral-tint);color:var(--coral-deep);}
-  .step:nth-child(3) .n{background:var(--amber-tint);color:#9a6100;}
+  .step:nth-child(3) .n{background:var(--amber-tint);color:var(--amber-ink);}
   .step h3{font-size:17.5px;margin:0 0 8px;font-weight:700;}
   .step p{color:var(--text-2);font-size:14.5px;margin:0;}
 
@@ -111,8 +166,8 @@
   .dcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 17px;}
   .dcard-top{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;}
   .dcard .score{font-weight:800;font-size:12.5px;padding:2px 10px;border-radius:999px;}
-  .dcard.hi .score{background:var(--teal-tint);color:#127a5f;}
-  .dcard.mid .score{background:var(--amber-tint);color:#9a6100;}
+  .dcard.hi .score{background:var(--teal-tint);color:var(--teal-ink);}
+  .dcard.mid .score{background:var(--amber-tint);color:var(--amber-ink);}
   .dcard.lo .score{background:var(--coral-tint);color:var(--coral-deep);}
   .dcard .who{color:var(--text-3);font-size:13px;}
   .dcard .txt{font-size:14.5px;}
@@ -149,19 +204,25 @@
   <header class="top">
     <div class="brand">
       <svg width="30" height="30" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="128" height="128" rx="26" fill="#FFFFFF"/>
-        <rect x="1" y="1" width="126" height="126" rx="25" fill="none" stroke="#EFE8DC" stroke-width="3"/>
-        <g fill="none" stroke="#4B3DDB" stroke-width="8" stroke-linecap="round">
+        <rect x="0" y="0" width="128" height="128" rx="26" style="fill:var(--card)"/>
+        <rect x="1" y="1" width="126" height="126" rx="25" fill="none" style="stroke:var(--line)" stroke-width="3"/>
+        <g fill="none" stroke-linecap="round" style="stroke:var(--indigo)" stroke-width="8">
           <path d="M 26 78 A 30 30 0 0 1 54 106"/>
           <path d="M 26 60 A 48 48 0 0 1 72 106"/>
           <path d="M 26 42 A 66 66 0 0 1 90 106"/>
         </g>
-        <circle cx="26" cy="106" r="7" fill="#4B3DDB"/>
-        <circle cx="94" cy="34" r="13" fill="#FF6B57"/>
+        <circle cx="26" cy="106" r="7" style="fill:var(--indigo)"/>
+        <circle cx="94" cy="34" r="13" style="fill:var(--coral)"/>
       </svg>
       <span class="word display">Reply<span>&nbsp;Scout</span></span>
     </div>
-    <a class="gh" href="https://github.com/vijaybw/reply-scout">View on GitHub &rarr;</a>
+    <div class="top-actions">
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+      <a class="gh" href="https://github.com/vijaybw/reply-scout">View on GitHub &rarr;</a>
+    </div>
   </header>
 
   <div class="hero">
@@ -252,5 +313,21 @@
   </footer>
 
 </div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById("themeToggle");
+    function current() {
+      var attr = root.getAttribute("data-theme");
+      if (attr) return attr;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    btn.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("reply-scout-theme", next); } catch (e) {}
+    });
+  })();
+</script>
 </body>
 </html>
