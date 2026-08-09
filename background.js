@@ -557,7 +557,7 @@ const DIGEST_HISTORY_KEY = "digestHistory";
 const DIGEST_HISTORY_DAYS = 3;   // "skip what I already saw" window, a little past a calendar day for weekend gaps
 const DIGEST_BATCH_SIZE = 25;    // stage-1 chunk size — keeps each triage call a reasonable size for local models
 
-function buildDigestSystemPrompt(s) {
+function buildDigestSystemPrompt(s, preFiltered) {
   return [
     "You build a short morning digest from a social media feed, for someone who wants to spend a few minutes reading instead of scrolling.",
     "",
@@ -570,6 +570,10 @@ function buildDigestSystemPrompt(s) {
     "- Never invent a url — only use urls that appear in the input.",
     "- Two-line summary: what the post actually says, specific, not vague hype.",
     "- Why-you-care: one sentence connecting it to their stated focus above — be specific, not generic filler.",
+    "- Lean toward including a plausible, on-topic post rather than excluding it — reserve exclusion for posts that are genuinely off-topic, spam, or low-effort. An empty items list should be the rare exception, not the usual outcome, whenever the input has more than a couple of posts.",
+    preFiltered
+      ? "- Every post below already passed an earlier relevance pass against the focus above — it wasn't randomly sampled. Default to including it as an item unless it's clearly a bad fit on a second look; don't re-run the same strict filter from scratch and reject most of them."
+      : "",
     "",
     "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input, with NO reference to any specific person, post, or account. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
     "- These are mutually exclusive, not a spectrum: if the draft names a specific person, quotes them, paraphrases their specific point, or is otherwise clearly reacting to one identifiable post, it IS a reply — type must be \"reply\" with that post's url, and that post must appear in items so the reader can see what's being replied to. type \"post\" is ONLY for an idea that stands on its own with zero assumed context — the reader must be able to understand it without seeing any other tweet. Never write a \"post\" that name-drops someone or paraphrases their tweet; that's a reply wearing a post's label.",
@@ -746,7 +750,8 @@ async function generateDigest(posts, requestId, tabId) {
   // the merged, much smaller candidate set. Keeps every individual model call
   // a sane size instead of one huge request.
   let candidates = fresh;
-  if (fresh.length > DIGEST_BATCH_SIZE) {
+  const preFiltered = fresh.length > DIGEST_BATCH_SIZE;
+  if (preFiltered) {
     const chunks = [];
     for (let i = 0; i < fresh.length; i += DIGEST_BATCH_SIZE) {
       chunks.push(fresh.slice(i, i + DIGEST_BATCH_SIZE));
@@ -772,7 +777,7 @@ async function generateDigest(posts, requestId, tabId) {
     }
   }
 
-  const systemPrompt = buildDigestSystemPrompt(s);
+  const systemPrompt = buildDigestSystemPrompt(s, preFiltered);
   const userContent = buildDigestUserContent(candidates);
   // Formatting up to 8 items (url + summary + whyCare each, plus a drafted
   // reply/post) genuinely needs more room than the 2000-token default used
