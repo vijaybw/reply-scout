@@ -37,12 +37,29 @@ Skip generic motivational content, engagement-bait, and anything that's just hus
 
 This is an example digest focus — replace it with your own role and what's actually worth your ten minutes.`;
 
-// Left blank deliberately, unlike the others — real writing samples are the
-// whole point of voice matching (a fabricated "example voice" would just be
-// a style the model imitates blindly, not a demonstration of anything
-// useful). Scoring/drafting works fine without it; buildSystemPrompt falls
-// back to plain, restrained sentences until real samples are added.
-const DEFAULT_VOICE = "";
+// An invented example, same as the other three — plain, declarative, no
+// hype words/hashtags/exclamation points, matching the restraint the
+// AI-tells rules already ask for. Worth being honest about the tradeoff
+// this makes: real samples are what the voice-matching feature is actually
+// built around ("real examples beat any style instruction" below), so
+// drafts generated against this placeholder will sound like this invented
+// persona, not like anyone in particular. It's here for demo completeness,
+// not because it's a substitute for the user's own writing — the leading
+// bracketed note says so explicitly, kept separate from the sample text
+// itself so it doesn't bleed into what the model imitates.
+const DEFAULT_VOICE = `[These are example samples showing the format — replace them with 3-8 posts you actually wrote. Real samples work far better than invented ones; this is just here so the demo isn't blank.]
+
+--- Sample 1 ---
+Spent two days debugging a race condition that only showed up under load. Turned out the retry logic was double-firing on timeout. Added a test for it, moved on.
+
+--- Sample 2 ---
+Shipped the new onboarding flow today. Conversion's up about 12% in the first look, but it's one week of data so I'm not calling it yet.
+
+--- Sample 3 ---
+Agree the tooling matters more than people give it credit for. We rewrote our deploy pipeline last year and it cut incident response time in half, no other changes involved.
+
+--- Sample 4 ---
+Made the classic mistake of optimizing the part of the system that wasn't actually slow. Profiled it properly this time before touching anything.`;
 
 // Inert in a browser/worker context (no `module` global there) — lets this
 // same file be require()'d directly under Node for background.js's tests.
