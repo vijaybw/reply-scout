@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Reply Scout",
   "version": "1.0.0",
-  "description": "Scans the X posts you're viewing, scores them against your thesis and rubric, and drafts replies in your voice. You review and post by hand.",
+  "description": "Scores the X posts you're viewing against your thesis and rubric, and drafts replies in your voice. You review and post by hand.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://api.anthropic.com/*",
