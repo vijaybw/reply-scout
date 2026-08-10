@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reply Scout — Privacy Policy</title>
+<meta name="description" content="What Reply Scout collects, where it's stored, and where it's sent — in plain terms.">
+<script>
+  // Applied before first paint so there's no flash of the wrong theme.
+  (function () {
+    try {
+      var saved = localStorage.getItem("reply-scout-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FCF9F4; --cream-2:#FCEEE6; --card:#ffffff; --line:#EFE8DC;
+    --ink:#201B2B; --text-2:#665f73; --text-3:#8a8394;
+    --indigo:#4B3DDB; --indigo-mid:#6353E8; --indigo-deep:#362AA6; --indigo-tint:#ECE8FC;
+    --coral:#FF6B57; --coral-deep:#F0533C; --coral-tint:#FFE6E0;
+    --teal:#2FB592; --teal-tint:#E3F5EF; --teal-ink:#127a5f;
+    --shadow-1:rgba(75,61,219,0.22); --shadow-2:rgba(32,27,43,0.10);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      --cream:#15131f; --cream-2:#1a1726; --card:#1e1b2a; --line:#322d42;
+      --ink:#EDEAF7; --text-2:#b3acc4; --text-3:#8c85a0;
+      --indigo:#7C6FF0; --indigo-mid:#9186F5; --indigo-deep:#9186F5; --indigo-tint:#2b2650;
+      --coral:#FF8A78; --coral-deep:#FFA695; --coral-tint:#3a2430;
+      --teal:#4FD9B0; --teal-tint:#16342c; --teal-ink:#4fd9b0;
+      --shadow-1:rgba(124,111,240,0.28); --shadow-2:rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --cream:#15131f; --cream-2:#1a1726; --card:#1e1b2a; --line:#322d42;
+    --ink:#EDEAF7; --text-2:#b3acc4; --text-3:#8c85a0;
+    --indigo:#7C6FF0; --indigo-mid:#9186F5; --indigo-deep:#9186F5; --indigo-tint:#2b2650;
+    --coral:#FF8A78; --coral-deep:#FFA695; --coral-tint:#3a2430;
+    --teal:#4FD9B0; --teal-tint:#16342c; --teal-ink:#4fd9b0;
+    --shadow-1:rgba(124,111,240,0.28); --shadow-2:rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--cream);color:var(--ink);}
+  body{transition:background-color .15s ease, color .15s ease;}
+  body{
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:"Bricolage Grotesque",Inter,sans-serif;}
+  a{color:var(--indigo);}
+  .wrap{max-width:760px;margin:0 auto;padding:0 28px;}
+
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:22px 0;
+  }
+  .brand{display:flex;align-items:center;gap:11px;text-decoration:none;}
+  .brand .word{font-weight:800;font-size:19px;letter-spacing:-0.01em;color:var(--ink);}
+  .brand .word span{color:var(--indigo);}
+  .top-actions{display:flex;align-items:center;gap:10px;}
+  .top a.gh{
+    color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;
+    border:1px solid var(--line);padding:8px 16px;border-radius:999px;background:var(--card);
+  }
+  .top a.gh:hover{border-color:var(--indigo);}
+  .theme-toggle{
+    width:38px;height:38px;border-radius:999px;border:1px solid var(--line);
+    background:var(--card);color:var(--text-2);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+  }
+  .theme-toggle:hover{border-color:var(--indigo);color:var(--indigo);}
+  .theme-toggle svg{width:18px;height:18px;}
+  .theme-toggle .i-sun{display:none;}
+  :root[data-theme="dark"] .theme-toggle .i-moon{display:none;}
+  :root[data-theme="dark"] .theme-toggle .i-sun{display:block;}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .theme-toggle .i-moon{display:none;}
+    :root:not([data-theme="light"]) .theme-toggle .i-sun{display:block;}
+  }
+
+  main{padding:24px 0 70px;}
+  h1{font-weight:800;font-size:34px;line-height:1.18;letter-spacing:-0.02em;margin:0 0 8px;}
+  .updated{color:var(--text-3);font-size:13.5px;margin:0 0 40px;}
+  h2{font-weight:800;font-size:19px;margin:40px 0 12px;letter-spacing:-0.01em;}
+  h2:first-of-type{margin-top:0;}
+  p{color:var(--text-2);font-size:15.5px;margin:0 0 14px;}
+  ul{margin:0 0 14px;padding-left:22px;color:var(--text-2);font-size:15.5px;}
+  li{margin-bottom:8px;}
+  li b, p b{color:var(--ink);}
+  code{
+    background:var(--cream-2);border:1px solid var(--line);border-radius:5px;
+    padding:1px 7px;font-size:13.5px;color:var(--ink);
+  }
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:0 0 14px;}
+  .box p:last-child{margin-bottom:0;}
+  .never{border-color:var(--teal-ink);}
+  .never h3{margin:0 0 10px;font-size:15.5px;font-weight:700;color:var(--teal-ink);}
+
+  footer{padding:44px 0 60px;color:var(--text-3);font-size:13.5px;border-top:1px solid var(--line);margin-top:20px;}
+  footer .fine{margin-top:10px;max-width:70ch;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <a class="brand" href="index.html">
+      <svg width="30" height="30" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="128" height="128" rx="26" style="fill:var(--card)"/>
+        <rect x="1" y="1" width="126" height="126" rx="25" fill="none" style="stroke:var(--line)" stroke-width="3"/>
+        <g fill="none" stroke-linecap="round" style="stroke:var(--indigo)" stroke-width="8">
+          <path d="M 26 78 A 30 30 0 0 1 54 106"/>
+          <path d="M 26 60 A 48 48 0 0 1 72 106"/>
+          <path d="M 26 42 A 66 66 0 0 1 90 106"/>
+        </g>
+        <circle cx="26" cy="106" r="7" style="fill:var(--indigo)"/>
+        <circle cx="94" cy="34" r="13" style="fill:var(--coral)"/>
+      </svg>
+      <span class="word display">Reply<span>&nbsp;Scout</span></span>
+    </a>
+    <div class="top-actions">
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle dark mode">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+      <a class="gh" href="https://github.com/vijaybw/reply-scout">View on GitHub &rarr;</a>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="display">Privacy Policy</h1>
+    <p class="updated">Last updated August 9, 2026</p>
+
+    <p>Reply Scout is a Chrome extension that scores the posts already visible on your X (Twitter) feed against a thesis and rubric you write, and drafts replies in your own voice. It never posts, likes, or follows on your behalf — you review and send everything by hand. This page explains, plainly, what data the extension touches, where it goes, and what it never does.</p>
+
+    <h2>What's stored, and where</h2>
+    <p>Everything Reply Scout remembers — your API key, thesis, rubric, voice samples, digest focus, settings, and a short local history of already-scored or already-digested post URLs — is kept in <b>Chrome's local extension storage</b> (<code>chrome.storage.local</code>), on your own device only.</p>
+    <ul>
+      <li>There is no Reply Scout account, login, or server. The developer cannot see, access, or receive any of this data — there's nowhere for it to go.</li>
+      <li>This data is never synced to the cloud by the extension. It stays in your local Chrome profile.</li>
+      <li>The post-history entries (used only to avoid re-scoring or re-surfacing the same post) are automatically deleted after a few days on a rolling basis — 2 days for scoring history, 3 for digest history.</li>
+      <li>Uninstalling the extension, or clearing its storage from <code>chrome://extensions</code>, deletes all of this permanently.</li>
+    </ul>
+
+    <h2>What gets sent externally, and to whom</h2>
+    <p>Reply Scout only sends data when you actively scan your feed or generate a digest, and only to one of these destinations, depending on your settings:</p>
+    <ul>
+      <li><b>Anthropic's API</b> (<code>api.anthropic.com</code>) — if you choose the Claude provider. The text (and, if you enable it, the image) of the posts currently on your screen is sent along with your thesis, rubric, voice samples, and digest focus, authenticated with your own Anthropic API key. This is a direct request from your browser to Anthropic; it does not pass through any Reply Scout server.</li>
+      <li><b>Your own local model server</b> (e.g. LM Studio on <code>localhost</code>) — if you choose the Local provider. The same data is sent, but only to a server running on your own machine. Nothing leaves your computer in this mode.</li>
+      <li><b>X's own image CDN</b> (<code>pbs.twimg.com</code>) — only if you turn on "Include images when scoring." Reply Scout fetches a post's own already-public image directly from X's servers so it can be included in scoring, the same way your browser already does to display it.</li>
+    </ul>
+    <p>That's the complete list. There is no analytics, telemetry, tracking pixel, ad network, or third-party data broker integrated into this extension.</p>
+
+    <div class="box never">
+      <h3>What Reply Scout never does</h3>
+      <p>It never posts, likes, follows, retweets, or sends a direct message on your behalf. It never reads your X password, session cookies, DMs, or account data beyond the post text/author/engagement-count already rendered on your screen. It never reads or transmits your browsing history. It never requires a Reply Scout account or login.</p>
+    </div>
+
+    <h2>Why each permission is requested</h2>
+    <ul>
+      <li><b><code>storage</code></b> — to save your settings and short-lived history locally, as described above.</li>
+      <li><b>Host permission for <code>api.anthropic.com</code></b> — to send scoring/drafting requests when you use the Claude provider.</li>
+      <li><b>Host permission for <code>pbs.twimg.com</code></b> — to fetch a post's own image when image scoring is turned on.</li>
+      <li><b>Host permission for <code>localhost</code> / <code>127.0.0.1</code></b> — to talk to your own local model server when you use the Local provider.</li>
+      <li><b>Content script on <code>x.com</code> / <code>twitter.com</code></b> — to read the posts already visible on your screen and show the Reply Scout panel. It does not run on any other site.</li>
+    </ul>
+
+    <h2>Children's privacy</h2>
+    <p>Reply Scout is not directed at, and is not knowingly used to collect data from, children under 13.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the date at the top of this page will be updated. Material changes will be noted in the project's <a href="https://github.com/vijaybw/reply-scout">GitHub repository</a>.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy or how Reply Scout handles data: open an issue on <a href="https://github.com/vijaybw/reply-scout/issues">GitHub</a>, or email <a href="mailto:walunjvijay@gmail.com">walunjvijay@gmail.com</a>.</p>
+  </main>
+
+  <footer>
+    <div>MIT licensed. Built by Vijay Walunj.</div>
+    <div class="fine">Reply Scout is an independent, unofficial browser extension. It is not affiliated with, endorsed by, or sponsored by X Corp. "X" is a trademark of its respective owner.</div>
+  </footer>
+
+</div>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById("themeToggle");
+    function current() {
+      var attr = root.getAttribute("data-theme");
+      if (attr) return attr;
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    btn.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("reply-scout-theme", next); } catch (e) {}
+    });
+  })();
+</script>
+</body>
+</html>

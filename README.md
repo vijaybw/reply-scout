@@ -96,3 +96,7 @@ Set provider to **Local** in settings and point it at your LM Studio server (def
 - `content.js` / `content.css` — the on-page panel and post extraction
 - `background.js` — model calls and scoring/drafting prompts
 - `options.html` / `options.js` — settings: API key, thesis, rubric, voice, score threshold
+
+## Privacy
+
+[Privacy Policy](https://vijaybw.github.io/reply-scout/privacy.html) — what's stored, what's sent externally, and what Reply Scout never does.
