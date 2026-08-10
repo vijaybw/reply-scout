@@ -1,12 +1,22 @@
 // Stub the minimum chrome surface background.js touches at load time
 // (top-level addListener calls) so it can be require()'d under plain Node.
-// Everything under test here is pure logic with no chrome API calls.
+// Everything under test here is pure logic with no chrome API calls, except
+// getSettings() — storage.local.get is stubbed to mimic real chrome.storage
+// behavior for empty storage: it just echoes back whatever defaults object
+// it was passed, since nothing is actually stored.
 global.chrome = {
   runtime: {
     onConnect: { addListener() {} },
     onMessage: { addListener() {} },
   },
   action: { onClicked: { addListener() {} } },
+  storage: {
+    local: {
+      get(defaults) {
+        return Promise.resolve({ ...defaults });
+      },
+    },
+  },
 };
 
 const test = require("node:test");
@@ -19,7 +29,20 @@ const {
   looksLikeGarbageOcr,
   buildSystemPrompt,
   buildDigestSystemPrompt,
+  getSettings,
 } = require("../background.js");
+const { DEFAULT_THESIS, DEFAULT_RUBRIC, DEFAULT_DIGEST_FOCUS, DEFAULT_VOICE } = require("../defaults.js");
+
+test("getSettings: falls back to the default persona when nothing is stored, so scoring works before Settings is ever opened", async () => {
+  const s = await getSettings();
+  assert.equal(s.thesis, DEFAULT_THESIS);
+  assert.equal(s.rubric, DEFAULT_RUBRIC);
+  assert.equal(s.digestFocus, DEFAULT_DIGEST_FOCUS);
+  assert.equal(s.voice, DEFAULT_VOICE);
+  // A real thesis/rubric feeding into the actual scoring prompt, not just present in isolation.
+  const prompt = buildSystemPrompt(s, false, false);
+  assert.match(prompt, /Real, specific detail about what I'm building/);
+});
 
 test("buildDigestSystemPrompt: includes the user's actual voice samples", () => {
   const s = { voice: "A distinctive sample sentence nobody else would write." };

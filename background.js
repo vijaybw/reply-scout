@@ -2,6 +2,19 @@
 // Receives a batch of posts from the content script, scores them with either
 // the Claude API or a local LM Studio server (OpenAI-compatible), returns results.
 
+// DEFAULT_THESIS / DEFAULT_RUBRIC / DEFAULT_DIGEST_FOCUS / DEFAULT_VOICE
+// come from defaults.js, the same file options.html loads for the settings
+// page — this is what makes the example persona real functional behavior
+// (getSettings() below) rather than just placeholder text in a form.
+// importScripts is a real global in the MV3 service worker context but
+// doesn't exist under Node, where the test suite requires this file
+// directly — fall back to a plain require() there instead.
+if (typeof importScripts === "function") {
+  importScripts("defaults.js");
+} else {
+  Object.assign(globalThis, require("./defaults.js"));
+}
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
@@ -107,13 +120,13 @@ async function getSettings() {
     apiKey: "",
     localBaseUrl: "http://localhost:1234/v1",
     localModel: "",                  // LM Studio uses the loaded model if blank
-    thesis: "",
-    rubric: "",
-    voice: "",
+    thesis: DEFAULT_THESIS,           // the same worked-example persona shown in settings — scoring/drafting
+    rubric: DEFAULT_RUBRIC,           // work immediately, even before the user has ever opened Settings
+    voice: DEFAULT_VOICE,
     minScore: 6,
     processImages: false,            // send each post's own photo/video thumbnail along with its text
     localOcrModel: "",               // optional: OCR-specialized local model id, used instead of vision on the main model
-    digestFocus: "",                 // what the "Generate digest" button should surface/skip
+    digestFocus: DEFAULT_DIGEST_FOCUS, // what the "Generate digest" button should surface/skip
   };
   return chrome.storage.local.get(defaults);
 }
@@ -879,5 +892,6 @@ if (typeof module !== "undefined" && module.exports) {
     buildVoiceAndTellsSection,
     buildSystemPrompt,
     buildDigestSystemPrompt,
+    getSettings,
   };
 }
