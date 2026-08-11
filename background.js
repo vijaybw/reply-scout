@@ -791,7 +791,7 @@ function draftLeaksSpecificPost(draft, candidates) {
 // justify a retry. The noun list will keep needing new entries as new
 // phrasings turn up in practice -- there's no way to enumerate this space
 // in advance.
-const OWN_WORK_CLAIM = /\b(in my own work|on my own team|our\s+(?:[\w-]+\s+){0,2}(?:teams?|process|pipelines?|systems?|products?|services?|review|deploy\w*|infrastructure|codebase|stack|roadmap|budget|decisions?|planning|projects?|workflow|org|organization|company|initiatives?|priorities|strategy)|we(?:'ve| have) (?:used|built|found|seen|shipped|deployed|cut|reduced|measured))\b/i;
+const OWN_WORK_CLAIM = /\b(in my own work|on my own team|our\s+(?:[\w-]+\s+){0,2}(?:teams?|process|pipelines?|systems?|products?|services?|review|deploy\w*|infrastructure|codebase|stack|roadmap|budget|decisions?|planning|projects?|workflow|org|organization|company|initiatives?|priorities|strategy|models?|experiments?|benchmarks?|data(?:set)?s?)|we(?:'ve| have) (?:used|built|found|seen|shipped|deployed|cut|reduced|measured))\b/i;
 function draftInventsOwnWork(draft) {
   if (!draft) return false;
   return OWN_WORK_CLAIM.test(draft.text || "") || OWN_WORK_CLAIM.test(draft.why || "");

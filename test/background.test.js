@@ -319,6 +319,14 @@ test("draftInventsOwnWork: true for an invented claim in draft.why, not just dra
   assert.equal(draftInventsOwnWork(draft), true);
 });
 
+test("draftInventsOwnWork: true for 'our own models' (ML-specific phrasing)", () => {
+  const draft = {
+    type: "reply",
+    text: "It would be useful to test this constraint on our own models and see if it improves convergence or reduces over-fitting.",
+  };
+  assert.equal(draftInventsOwnWork(draft), true);
+});
+
 test("draftInventsOwnWork: false for a reply grounded only in the post's own content", () => {
   const draft = { type: "reply", text: "Linear-time attention mattering this much for scaling is easy to miss until you hit the wall yourself." };
   assert.equal(draftInventsOwnWork(draft), false);
