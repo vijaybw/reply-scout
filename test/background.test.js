@@ -84,6 +84,29 @@ test("buildDigestSystemPrompt: forbids inventing facts about the user's own team
   assert.match(prompt, /Never invent facts, numbers, outcomes, or specifics about the user's own team/);
 });
 
+test("buildSystemPrompt: forbids inventing facts about the user's own team/process (parity with digest)", () => {
+  // Regression: a real digest draft claimed "our event-driven services" out
+  // of nowhere -- the same class of bug the digest prompt was already fixed
+  // for once, except buildSystemPrompt still had the old, much weaker
+  // one-liner ("Never invent facts, numbers, outcomes, or program details.")
+  // that doesn't name the "our team/process" failure mode at all.
+  const prompt = buildSystemPrompt({}, false, false);
+  assert.match(prompt, /Never invent facts, numbers, outcomes, or specifics about the user's own team/);
+});
+
+test("buildSystemPrompt and buildDigestSystemPrompt: always ban hype words and exclamation points, not just when voice is unset", () => {
+  // Regression: this instruction used to live only inside the empty-voice
+  // fallback string, so it silently stopped applying once getSettings()
+  // started returning a populated DEFAULT_VOICE -- a real draft used against
+  // the default persona then came back with an exclamation point.
+  const s = { voice: "Some real voice sample text." };
+  const mainPrompt = buildSystemPrompt(s, false, false);
+  const digestPrompt = buildDigestSystemPrompt(s, false);
+  for (const prompt of [mainPrompt, digestPrompt]) {
+    assert.match(prompt, /No hype words, no exclamation points, no emojis, no hashtags/);
+  }
+});
+
 test("buildDigestSystemPrompt: forbids pitching, link-dropping, sycophancy, and engagement-bait", () => {
   const prompt = buildDigestSystemPrompt({}, false);
   assert.match(prompt, /Never pitch or link-drop/);

@@ -154,8 +154,20 @@ function buildVoiceAndTellsSection(s) {
     "- Vary sentence length and rhythm — real writing is uneven, not uniformly polished.",
     "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
     "- Take an actual position instead of gesturing at \"balance\" or \"both sides\" — a real reply usually agrees, disagrees, or adds a specific fact, not all three hedged together. A reply that's entirely questions, with no stance or fact of your own anywhere in it, is the same failure in a different shape — asking a genuine question is fine as one line inside a reply that also says something, never as the whole reply. Never stack more than one question in a single reply.",
+    "- No hype words, no exclamation points, no emojis, no hashtags — regardless of what the voice samples do or don't show.",
     "",
   ];
+}
+
+// Shared with buildDigestSystemPrompt for the same reason as the voice/tells
+// section above — this used to live only in the digest prompt (worded much
+// more strongly than buildSystemPrompt's old one-liner) after a real digest
+// draft claimed "our internal review process" out of nowhere. The per-post
+// reply path has the same failure mode and had the weaker wording, so it's
+// just as likely to invent a detail about the user's team — same parity gap,
+// different rule.
+function buildFactInventionRule() {
+  return "Never invent facts, numbers, outcomes, or specifics about the user's own team, process, or organization (e.g. \"our internal review process\", \"we cut this by 40%\", \"our on-call overhead\", \"our event-driven services\", \"the manual tuning loop that currently dominates our pipeline\") — you have no knowledge of these, even if the voice samples show the user confidently discussing their own real work elsewhere. That confident tone is something to imitate; the specific claims inside it are not — the samples show you HOW the user sounds when they know something firsthand, not WHAT is currently true about their operations. If you don't have a real specific to reference, engage with the post's own content and general expertise instead of manufacturing an equivalent-sounding detail about the user's team to fill the gap.";
 }
 
 function buildSystemPrompt(s, hasImages, hasAnnotations) {
@@ -187,7 +199,7 @@ function buildSystemPrompt(s, hasImages, hasAnnotations) {
   }
   lines.push(
     "== HARD RULES FOR REPLIES ==",
-    "- Never invent facts, numbers, outcomes, or program details.",
+    "- " + buildFactInventionRule(),
     "- Never pitch or link-drop. Add value first; the profile does the selling.",
     "- No sycophancy ('Great post!'), no engagement-bait, no questions purely to farm replies.",
     "- 1-3 sentences. Plain words. It should read like a knowledgeable person talking, not marketing.",
@@ -618,7 +630,7 @@ function buildDigestSystemPrompt(s, preFiltered) {
     "",
     "- draft is REQUIRED and must never be null as long as you were given at least one post below — you always have something to work with. Pick exactly ONE of: (a) a reply to whichever single post (from the full input, not only the ones that made it into items) is most worth responding to, or (b) if truly nothing individually deserves a reply, a standalone post idea grounded in the general theme of what's in the input, with NO reference to any specific person, post, or account. Write real, specific, ready-to-send text — never a description of what a reply/post could say, and never a placeholder.",
     "- draft.text: 1-3 sentences, plain words. It should read like a knowledgeable person talking, not a lab statement or a press release.",
-    "- Never invent facts, numbers, outcomes, or specifics about the user's own team, process, or organization (e.g. \"our internal review process\", \"we cut this by 40%\", \"our on-call overhead\", \"the manual tuning loop that currently dominates our pipeline\") — you have no knowledge of these, even if the voice samples show the user confidently discussing their own real work elsewhere. That confident tone is something to imitate; the specific claims inside it are not — the samples show you HOW the user sounds when they know something firsthand, not WHAT is currently true about their operations. If you don't have a real specific to reference, engage with the post's own content and general expertise instead of manufacturing an equivalent-sounding detail about the user's team to fill the gap.",
+    "- " + buildFactInventionRule(),
     "- Never pitch or link-drop. No sycophancy (\"Great post!\"), no engagement-bait, no questions asked purely to farm replies.",
     "- These are mutually exclusive, not a spectrum: if the draft names a specific person, quotes them, paraphrases their specific point, or is otherwise clearly reacting to one identifiable post, it IS a reply — type must be \"reply\" with that post's url, and that post must appear in items so the reader can see what's being replied to. type \"post\" is ONLY for an idea that stands on its own with zero assumed context — the reader must be able to understand it without seeing any other tweet. Never write a \"post\" that name-drops someone or paraphrases their tweet; that's a reply wearing a post's label.",
     "- Also give that draft a one-sentence \"today's move\" framing: why this specific reply/post, out of everything in the digest, is the one worth acting on today.",
