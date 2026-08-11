@@ -26,6 +26,8 @@ const {
   parseShortlistResult,
   parseDigestResult,
   draftLeaksSpecificPost,
+  draftInventsOwnWork,
+  isSettingsError,
   looksLikeGarbageOcr,
   buildSystemPrompt,
   buildDigestSystemPrompt,
@@ -257,6 +259,44 @@ test("draftLeaksSpecificPost: false for reply-type drafts (naming is expected th
 
 test("draftLeaksSpecificPost: false when draft is null", () => {
   assert.equal(draftLeaksSpecificPost(null, []), false);
+});
+
+test("isSettingsError: flags the three config-related failure messages", () => {
+  assert.equal(isSettingsError("No API key set. Open settings and paste your Anthropic API key, or switch provider to Local (LM Studio)."), true);
+  assert.equal(isSettingsError("API key rejected (401). Check the key in settings."), true);
+  assert.equal(isSettingsError("Could not reach LM Studio at http://localhost:1234/v1. Is the server running?"), true);
+});
+
+test("isSettingsError: does not flag transient/runtime errors", () => {
+  assert.equal(isSettingsError("Rate limited (429). Wait a moment and scan again."), false);
+  assert.equal(isSettingsError("Anthropic request timed out after 60s. Try again."), false);
+  assert.equal(isSettingsError("Could not parse the model's response as JSON. Local models sometimes ramble — try again."), false);
+});
+
+test("draftInventsOwnWork: true for real observed fabrications", () => {
+  // Regression: the prompt-level rule against inventing team/process
+  // specifics kept getting violated by the local model in slightly
+  // different words each time real digest output was checked -- these are
+  // the three actual phrasings that showed up.
+  assert.equal(draftInventsOwnWork({ type: "reply", text: 'Relevant to our internal review process.' }), true);
+  assert.equal(draftInventsOwnWork({ type: "reply", text: "Especially relevant for our event-driven services." }), true);
+  assert.equal(
+    draftInventsOwnWork({
+      type: "reply",
+      text: "In my own work, we've used prompt-based retrieval to surface old archives, and the engagement spike was measurable.",
+    }),
+    true
+  );
+});
+
+test("draftInventsOwnWork: false for a reply grounded only in the post's own content", () => {
+  const draft = { type: "reply", text: "Linear-time attention mattering this much for scaling is easy to miss until you hit the wall yourself." };
+  assert.equal(draftInventsOwnWork(draft), false);
+});
+
+test("draftInventsOwnWork: false when draft is null or has no text", () => {
+  assert.equal(draftInventsOwnWork(null), false);
+  assert.equal(draftInventsOwnWork({ type: "post" }), false);
 });
 
 test("looksLikeGarbageOcr: true for coordinate-only grounding output", () => {

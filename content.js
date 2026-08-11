@@ -80,7 +80,7 @@
     }
   }
 
-  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true, theme: "", digestPostTarget: 45 }).then((s) => {
+  chrome.storage.local.get({ autoScan: false, hideBelow: true, minScore: 6, warnLayoutChange: true, theme: "", digestPostTarget: 45, provider: "anthropic", apiKey: "" }).then((s) => {
     autoScan = s.autoScan;
     hideBelow = s.hideBelow;
     minScore = parseFloat(s.minScore) || 6;
@@ -91,6 +91,7 @@
     updateAutoUI();
     updateFilterUI();
     updatePageGate();
+    updateSetupUI(s);
   });
 
   // `seen` is otherwise reset on every real page load/navigation, which
@@ -175,6 +176,17 @@
     if (changes.digestPostTarget) {
       digestScrollTarget = parseInt(changes.digestPostTarget.newValue, 10) || 45;
       digestScrollMaxSteps = digestMaxStepsFor(digestScrollTarget);
+    }
+    if (changes.provider || changes.apiKey) {
+      chrome.storage.local.get({ provider: "anthropic", apiKey: "" }).then((s) => {
+        panel.querySelector("#rs-settings").classList.toggle("rs-needs-attention", needsApiKey(s));
+        // Only clear the warning automatically (key just got saved); don't
+        // re-show it here — that's still handled by the reactive scan-error
+        // path so it doesn't override whatever's on screen mid-session.
+        if (!needsApiKey(s) && statusEl.classList.contains("rs-warn")) {
+          updateStatusIdle();
+        }
+      });
     }
   });
 
@@ -455,7 +467,11 @@
     sendLongRunning("SCORE_POSTS", { posts: payload }).then((resp) => {
       inFlight = false;
       if (!resp || !resp.ok) {
-        setStatus(resp ? resp.error : "No response from background worker.", "warn");
+        if (resp && resp.needsSettings) {
+          setStatusWithAction(resp.error, "warn", "Open Settings", openSettings);
+        } else {
+          setStatus(resp ? resp.error : "No response from background worker.", "warn");
+        }
         // Put the batch back so it isn't silently lost on a transient failure
         batch.forEach((p) => { const k = postKey(p); seen.delete(k); pending.set(k, p); });
         return;
@@ -519,9 +535,10 @@
     chrome.storage.local.set({ theme: next });
   });
 
-  panel.querySelector("#rs-settings").addEventListener("click", () => {
+  function openSettings() {
     chrome.runtime.sendMessage({ type: "OPEN_OPTIONS" });
-  });
+  }
+  panel.querySelector("#rs-settings").addEventListener("click", openSettings);
   panel.querySelector("#rs-collapse").addEventListener("click", () => {
     panel.classList.toggle("rs-collapsed");
     panel.querySelector("#rs-collapse").textContent = panel.classList.contains("rs-collapsed") ? "+" : "–";
@@ -821,7 +838,11 @@
       digestBtn.textContent = "Generate digest";
       restoreAutoScan();
       if (!resp || !resp.ok) {
-        setStatus(resp ? resp.error : "No response from background worker.", "warn");
+        if (resp && resp.needsSettings) {
+          setStatusWithAction(resp.error, "warn", "Open Settings", openSettings);
+        } else {
+          setStatus(resp ? resp.error : "No response from background worker.", "warn");
+        }
         return;
       }
       renderDigest(resp.digest, posts);
@@ -829,8 +850,44 @@
   });
 
   function setStatus(msg, kind) {
-    statusEl.textContent = msg;
+    setStatusWithAction(msg, kind);
+  }
+
+  // Same as setStatus, but with an optional inline action button (e.g. "Open
+  // Settings") appended after the message — built as real DOM nodes rather
+  // than innerHTML so the message text can never be interpreted as markup.
+  function setStatusWithAction(msg, kind, actionLabel, onAction) {
+    statusEl.textContent = "";
     statusEl.className = "rs-status" + (kind ? " rs-" + kind : "");
+    statusEl.appendChild(document.createTextNode(msg));
+    if (actionLabel) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rs-linklike rs-status-action";
+      btn.textContent = actionLabel;
+      btn.addEventListener("click", onAction);
+      statusEl.appendChild(btn);
+    }
+  }
+
+  // Deterministically checkable without a network call: Anthropic selected
+  // but no key pasted in yet. (Local/LM Studio can't be verified this way —
+  // that's already surfaced reactively if a scan fails to reach it.)
+  function needsApiKey(s) {
+    return (s.provider || "anthropic") !== "local" && !s.apiKey;
+  }
+
+  function updateSetupUI(s) {
+    const settingsBtn = panel.querySelector("#rs-settings");
+    settingsBtn.classList.toggle("rs-needs-attention", needsApiKey(s));
+    if (needsApiKey(s) && scoredCount === 0 && !inFlight) {
+      setStatusWithAction(
+        "No API key set — paste your Anthropic API key in Settings, or switch provider to Local (LM Studio).",
+        "warn",
+        "Open Settings",
+        openSettings
+      );
+    }
   }
 
   function updateStatusIdle() {

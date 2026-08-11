@@ -93,18 +93,33 @@ function pushResult(tabId, type, requestId, payload) {
   pushToTab(tabId, { type, requestId, ...payload });
 }
 
+// Flags the subset of errors that mean "you haven't finished setting this
+// up" rather than a transient/runtime failure (timeout, rate limit, bad
+// parse) — content.js uses this to show an "Open Settings" button inline
+// instead of a plain warning the user can't act on directly.
+const SETTINGS_ERROR = /No API key set|API key rejected|Could not reach LM Studio/;
+function isSettingsError(msg) {
+  return SETTINGS_ERROR.test(String(msg || ""));
+}
+
 chrome.runtime.onMessage.addListener((msg, sender) => {
   const tabId = sender?.tab?.id;
   if (msg.type === "SCORE_POSTS") {
     enqueue(() => scorePosts(msg.posts))
       .then((results) => pushResult(tabId, "SCORE_RESULT", msg.requestId, { ok: true, results }))
-      .catch((err) => pushResult(tabId, "SCORE_RESULT", msg.requestId, { ok: false, error: String(err.message || err) }));
+      .catch((err) => {
+        const error = String(err.message || err);
+        pushResult(tabId, "SCORE_RESULT", msg.requestId, { ok: false, error, needsSettings: isSettingsError(error) });
+      });
     return;
   }
   if (msg.type === "GENERATE_DIGEST") {
     enqueue(() => generateDigest(msg.posts, msg.requestId, tabId))
       .then((digest) => pushResult(tabId, "DIGEST_RESULT", msg.requestId, { ok: true, digest }))
-      .catch((err) => pushResult(tabId, "DIGEST_RESULT", msg.requestId, { ok: false, error: String(err.message || err) }));
+      .catch((err) => {
+        const error = String(err.message || err);
+        pushResult(tabId, "DIGEST_RESULT", msg.requestId, { ok: false, error, needsSettings: isSettingsError(error) });
+      });
     return;
   }
   if (msg.type === "OPEN_OPTIONS") {
@@ -759,6 +774,23 @@ function draftLeaksSpecificPost(draft, candidates) {
   });
 }
 
+// Backstop for the "never invent facts about your own team/process" rule in
+// buildFactInventionRule() above -- the local model at low reasoning effort
+// keeps violating it in slightly different words each time real output was
+// checked (seen in practice: "our internal review process", "our
+// event-driven services", "in my own work, we've used prompt-based
+// retrieval... the engagement spike was measurable"). A prompt rule alone
+// wasn't reliable enough, so this flags the SHAPE of the claim -- first-
+// person ownership language about the user's own team/product/process --
+// rather than trying to verify any specific claim is false. The underlying
+// rule bans this category outright regardless of whether a given instance
+// happens to be true, since the model has no way to know either way, so
+// matching the shape is enough to justify a retry.
+const OWN_WORK_CLAIM = /\b(in my own work|on my own team|our\s+(?:[\w-]+\s+){0,2}(?:team|process|pipeline|systems?|products?|services?|review|deploy\w*|infrastructure|codebase|stack)|we(?:'ve| have) (?:used|built|found|seen|shipped|deployed|cut|reduced|measured))\b/i;
+function draftInventsOwnWork(draft) {
+  return !!(draft && draft.text && OWN_WORK_CLAIM.test(draft.text));
+}
+
 // Loads the "already digested" url -> timestamp map, dropping anything older
 // than DIGEST_HISTORY_DAYS so it doesn't grow forever or exclude things
 // you'd reasonably want to see again after a few days.
@@ -855,28 +887,33 @@ async function generateDigest(posts, requestId, tabId) {
 
   // The prompt mandates a draft whenever there's at least one candidate post
   // (which is guaranteed here), but local models occasionally drop it anyway,
-  // or mislabel a reply-in-disguise as a standalone "post" (naming/paraphrasing
-  // a specific person without linking their tweet). One retry with a sharper,
-  // targeted nudge is enough in practice — cheaper than shipping either failure.
+  // mislabel a reply-in-disguise as a standalone "post" (naming/paraphrasing
+  // a specific person without linking their tweet), or invent a specific
+  // about the user's own team/work. One retry with a sharper, targeted nudge
+  // is enough in practice — cheaper than shipping any of these three.
   const leaked = draftLeaksSpecificPost(digest.draft, candidates);
-  if (!digest.draft || leaked) {
+  const invents = draftInventsOwnWork(digest.draft);
+  if (!digest.draft || leaked || invents) {
     try {
       const nudge = leaked
         ? "\n\nYour previous \"draft\" was type \"post\" but named or paraphrased a specific person's post — that makes it a reply, not a standalone post. Fix it: either set type to \"reply\" with that post's url (and add that post to items so it's visible), or rewrite it as a truly standalone idea with no reference to anyone specific."
+        : invents
+        ? "\n\nYour previous \"draft\" claimed something specific about your own team, product, or process (\"our own X\", \"we've used/built/found...\", \"in my own work...\"). You have no knowledge of the user's actual current work, so that claim is always a rule violation, true or not. Rewrite draft.text to engage with the post's own content and general expertise instead — zero claims about your own team, product, or process."
         : "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
       const retrySystemPrompt = systemPrompt + nudge;
       const retryText = await callModel(s, retrySystemPrompt, userContent, { maxTokens: DIGEST_MAX_TOKENS, reasoningEffort: "low" });
       const retryDigest = parseDigestResult(retryText, validUrls);
-      if (retryDigest.draft && !draftLeaksSpecificPost(retryDigest.draft, candidates)) {
+      const retryBad = draftLeaksSpecificPost(retryDigest.draft, candidates) || draftInventsOwnWork(retryDigest.draft);
+      if (retryDigest.draft && !retryBad) {
         digest = {
           items: retryDigest.items.length ? retryDigest.items : digest.items,
           draft: retryDigest.draft,
         };
-      } else if (leaked) {
-        digest = { items: digest.items, draft: null }; // still mislabeled (or nothing usable) — drop it rather than ship it
+      } else if (leaked || invents) {
+        digest = { items: digest.items, draft: null }; // still bad (or nothing usable) — drop it rather than ship it
       }
     } catch (_) {
-      if (leaked) digest = { items: digest.items, draft: null };
+      if (leaked || invents) digest = { items: digest.items, draft: null };
       // otherwise leave digest.draft null — better to show a digest without one than to fail it entirely
     }
   }
@@ -898,6 +935,8 @@ if (typeof module !== "undefined" && module.exports) {
     parseShortlistResult,
     parseDigestResult,
     draftLeaksSpecificPost,
+    draftInventsOwnWork,
+    isSettingsError,
     looksLikeGarbageOcr,
     extractOcrText,
     ocrPromptFor,

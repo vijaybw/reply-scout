@@ -147,6 +147,24 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Small notification dot on the header "Settings" button while no API key
+   is set — a passive visual pointer toward where to go, on top of the
+   status line's own explicit "Open Settings" action below. */
+#rs-settings.rs-needs-attention {
+  position: relative;
+  color: var(--warn-text);
+}
+#rs-settings.rs-needs-attention::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn-text);
+}
 /* Pill-shaped buttons: an outset ring on a border-radius:999px shape reads
    as a detached, broken-looking halo. Inset instead, so it hugs the pill.
    box-shadow instead of outline -- outline with a negative offset on a
@@ -221,6 +239,16 @@
 .rs-status.rs-warn { color: var(--warn-text); }
 .rs-status.rs-busy { color: var(--accent); }
 .rs-status.rs-done { color: var(--score-high-text); }
+
+/* Inline call-to-action appended to a status message (e.g. "Open Settings"
+   after a missing-API-key warning) -- an actual button instead of asking the
+   user to go find Settings themselves after reading plain text. */
+.rs-status-action {
+  margin-left: 6px;
+  text-decoration: underline;
+  font-weight: 700;
+  color: inherit;
+}
 
 /* A small pulsing dot ahead of any "working" text (busy status line, and the
    digest button while it's disabled/running) — a live, blinking indicator
