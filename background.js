@@ -164,7 +164,7 @@ function buildVoiceAndTellsSection(s) {
     "- No aphoristic one-line \"wisdom\" closers (e.g. \"Real research starts with a question, not a conclusion.\"). If there's nothing substantive left to add, stop instead of manufacturing a closing platitude.",
     "- Skip AI-coded vocabulary: delve, tapestry, testament, beacon, realm, elevate, foster, leverage, unpack, underscore, navigate, landscape, resonate, seamless, robust, holistic.",
     "- No em dash used as a dramatic pivot. Use a period or comma instead.",
-    "- No throat-clearing openers (\"Great point\", \"Interesting question\", \"I think\", \"I appreciate the point\").",
+    "- No throat-clearing openers (\"Great point\", \"Interesting question\", \"I think\", \"I appreciate the point\", \"Thanks for sharing/compiling/posting this\"). Open with the actual content, not an acknowledgment of the post first.",
     "- Don't glue sentences with transition words (moreover, furthermore, additionally). Most consecutive sentences need no connector.",
     "- Vary sentence length and rhythm — real writing is uneven, not uniformly polished.",
     "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
@@ -777,18 +777,24 @@ function draftLeaksSpecificPost(draft, candidates) {
 // Backstop for the "never invent facts about your own team/process" rule in
 // buildFactInventionRule() above -- the local model at low reasoning effort
 // keeps violating it in slightly different words each time real output was
-// checked (seen in practice: "our internal review process", "our
-// event-driven services", "in my own work, we've used prompt-based
-// retrieval... the engagement spike was measurable"). A prompt rule alone
-// wasn't reliable enough, so this flags the SHAPE of the claim -- first-
-// person ownership language about the user's own team/product/process --
-// rather than trying to verify any specific claim is false. The underlying
-// rule bans this category outright regardless of whether a given instance
-// happens to be true, since the model has no way to know either way, so
-// matching the shape is enough to justify a retry.
-const OWN_WORK_CLAIM = /\b(in my own work|on my own team|our\s+(?:[\w-]+\s+){0,2}(?:team|process|pipeline|systems?|products?|services?|review|deploy\w*|infrastructure|codebase|stack)|we(?:'ve| have) (?:used|built|found|seen|shipped|deployed|cut|reduced|measured))\b/i;
+// checked: "our internal review process", "our event-driven services", "in
+// my own work, we've used prompt-based retrieval... the engagement spike
+// was measurable", "our own roadmap", "our engineering budget decisions"
+// (that last one in draft.why, not draft.text -- why is user-facing too, as
+// the "Today's move" line, and the underlying rule was never actually
+// scoped to text only). A prompt rule alone wasn't reliable enough, so this
+// flags the SHAPE of the claim -- first-person ownership language about the
+// user's own team/product/process/plans -- rather than trying to verify any
+// specific claim is false. The underlying rule bans this category outright
+// regardless of whether a given instance happens to be true, since the
+// model has no way to know either way, so matching the shape is enough to
+// justify a retry. The noun list will keep needing new entries as new
+// phrasings turn up in practice -- there's no way to enumerate this space
+// in advance.
+const OWN_WORK_CLAIM = /\b(in my own work|on my own team|our\s+(?:[\w-]+\s+){0,2}(?:teams?|process|pipelines?|systems?|products?|services?|review|deploy\w*|infrastructure|codebase|stack|roadmap|budget|decisions?|planning|projects?|workflow|org|organization|company|initiatives?|priorities|strategy)|we(?:'ve| have) (?:used|built|found|seen|shipped|deployed|cut|reduced|measured))\b/i;
 function draftInventsOwnWork(draft) {
-  return !!(draft && draft.text && OWN_WORK_CLAIM.test(draft.text));
+  if (!draft) return false;
+  return OWN_WORK_CLAIM.test(draft.text || "") || OWN_WORK_CLAIM.test(draft.why || "");
 }
 
 // Loads the "already digested" url -> timestamp map, dropping anything older

@@ -124,6 +124,18 @@ test("buildSystemPrompt: still includes voice samples and AI-tells after the sha
   assert.match(prompt, /delve, tapestry/);
 });
 
+test("buildSystemPrompt and buildDigestSystemPrompt: ban 'Thanks for sharing/compiling' style openers", () => {
+  // Regression: two separate real drafts opened with "Thanks for compiling
+  // the Q2 2026 serverless highlights!" and "Thanks for sharing the link." --
+  // the throat-clearing rule existed but its example list didn't cover this
+  // exact shape, so it kept slipping through.
+  const mainPrompt = buildSystemPrompt({}, false, false);
+  const digestPrompt = buildDigestSystemPrompt({}, false);
+  for (const prompt of [mainPrompt, digestPrompt]) {
+    assert.match(prompt, /Thanks for sharing\/compiling\/posting/);
+  }
+});
+
 test("buildSystemPrompt: falls back to the no-voice default when voice is unset", () => {
   const prompt = buildSystemPrompt({}, false, false);
   assert.match(prompt, /No voice samples set/);
@@ -287,6 +299,24 @@ test("draftInventsOwnWork: true for real observed fabrications", () => {
     }),
     true
   );
+});
+
+test("draftInventsOwnWork: true for 'our own roadmap' in draft.text", () => {
+  const draft = { type: "reply", text: "It'll help us weigh the trade-offs in our own roadmap." };
+  assert.equal(draftInventsOwnWork(draft), true);
+});
+
+test("draftInventsOwnWork: true for an invented claim in draft.why, not just draft.text", () => {
+  // Regression: draft.why (rendered to the user as "Today's move") isn't
+  // scoped out of the fact-invention rule, but the checker used to only
+  // look at draft.text -- a real draft invented "our engineering budget
+  // decisions" in why while text itself was otherwise clean.
+  const draft = {
+    type: "reply",
+    why: "The cost analysis is the most actionable insight for our engineering budget decisions today.",
+    text: "The article's breakdown of hidden costs clarifies the DIY-vs-buy trade-off well.",
+  };
+  assert.equal(draftInventsOwnWork(draft), true);
 });
 
 test("draftInventsOwnWork: false for a reply grounded only in the post's own content", () => {
