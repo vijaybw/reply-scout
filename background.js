@@ -153,7 +153,7 @@ function buildVoiceAndTellsSection(s) {
     "- Don't glue sentences with transition words (moreover, furthermore, additionally). Most consecutive sentences need no connector.",
     "- Vary sentence length and rhythm — real writing is uneven, not uniformly polished.",
     "- Reference something specific and concrete from the post (a number, a named thing, an actual claim) instead of restating the topic in the abstract.",
-    "- Take an actual position instead of gesturing at \"balance\" or \"both sides\" — a real reply usually agrees, disagrees, or adds a specific fact, not all three hedged together.",
+    "- Take an actual position instead of gesturing at \"balance\" or \"both sides\" — a real reply usually agrees, disagrees, or adds a specific fact, not all three hedged together. A reply that's entirely questions, with no stance or fact of your own anywhere in it, is the same failure in a different shape — asking a genuine question is fine as one line inside a reply that also says something, never as the whole reply. Never stack more than one question in a single reply.",
     "",
   ];
 }

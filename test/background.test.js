@@ -57,6 +57,18 @@ test("buildDigestSystemPrompt: includes the AI-tells guardrails", () => {
   assert.match(prompt, /Pronoun choice/);
 });
 
+test("buildSystemPrompt and buildDigestSystemPrompt: ban all-questions-no-stance replies", () => {
+  // Regression for a real observed draft: three stacked questions, no
+  // opinion or fact of its own anywhere -- caught the "take a position"
+  // rule too loosely worded to flag it.
+  const mainPrompt = buildSystemPrompt({}, false, false);
+  const digestPrompt = buildDigestSystemPrompt({}, false);
+  for (const prompt of [mainPrompt, digestPrompt]) {
+    assert.match(prompt, /entirely questions, with no stance or fact/);
+    assert.match(prompt, /[Nn]ever stack more than one question/);
+  }
+});
+
 test("buildDigestSystemPrompt: does not blanket-ban 'we' (voice samples should govern pronoun choice)", () => {
   const prompt = buildDigestSystemPrompt({}, false);
   assert.doesNotMatch(prompt, /never "we"/);
