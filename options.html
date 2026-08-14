@@ -131,10 +131,10 @@
 
     <div class="card">
       <label for="provider">Model provider</label>
-      <p class="hint">Claude API (best quality) or a local model through LM Studio (free, private, runs on your machine).</p>
+      <p class="hint">Claude API (best quality) or a local model server (free, private, runs on your machine — LM Studio, Ollama, or anything else with an OpenAI-compatible API).</p>
       <select id="provider" style="width:100%;padding:9px 10px;background:var(--input-bg);color:var(--text);border:1px solid var(--line);border-radius:8px;font-size:13.5px">
         <option value="anthropic">Claude API (api.anthropic.com)</option>
-        <option value="local">Local — LM Studio</option>
+        <option value="local">Local — LM Studio, Ollama, etc.</option>
       </select>
     </div>
 
@@ -145,12 +145,12 @@
     </div>
 
     <div class="card" id="localCard">
-      <label for="localBaseUrl">LM Studio server URL</label>
-      <p class="hint">In LM Studio: Developer tab → Start Server. Default is http://localhost:1234/v1. Enable CORS in the server settings.</p>
+      <label for="localBaseUrl">Local server URL</label>
+      <p class="hint">LM Studio: Developer tab → Start Server. Default http://localhost:1234/v1 — enable CORS in the server settings. Ollama: default http://localhost:11434/v1 — Ollama blocks browser extensions by default (a 403 error), so start it with an origin allowlist, e.g. <code>OLLAMA_ORIGINS="chrome-extension://*" ollama serve</code>.</p>
       <input type="text" id="localBaseUrl" placeholder="http://localhost:1234/v1" autocomplete="off" />
       <div style="height:10px"></div>
       <label for="localModel">Model name (optional)</label>
-      <p class="hint">Leave blank to use whatever model is loaded in LM Studio. Or paste the exact id shown on LM Studio's server page.</p>
+      <p class="hint">Leave blank to use whatever model is loaded (LM Studio) or the model tag you pull (Ollama, e.g. <code>llama3.2</code>).</p>
       <input type="text" id="localModel" placeholder="e.g. qwen2.5-14b-instruct" autocomplete="off" />
       <div style="height:10px"></div>
       <label for="localOcrModel">OCR model for images (optional)</label>

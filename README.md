@@ -2,11 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-4B3DDB)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/manifest-v3-6353E8)](manifest.json)
-[![Local model support](https://img.shields.io/badge/local%20model-LM%20Studio-FF6B57)](#using-a-local-model-instead-of-the-api)
+[![Local model support](https://img.shields.io/badge/local%20model-LM%20Studio%20%7C%20Ollama-FF6B57)](#using-a-local-model-instead-of-the-api)
 
 A Chrome extension for x.com that turns your feed into a scored, draftable queue instead of an endless scroll. It reads whatever's on your screen, scores each post against a thesis and rubric you write, and drafts a reply in your own voice for anything worth engaging. You edit, copy, and post by hand — it never posts, likes, or follows for you.
 
-No X API needed — it only sees what your logged-in browser already renders. Works with the Claude API or a fully local model (LM Studio), your choice.
+No X API needed — it only sees what your logged-in browser already renders. Works with the Claude API or a fully local model server (LM Studio, Ollama, or anything else with an OpenAI-compatible API), your choice.
 
 ## Install (2 minutes)
 
@@ -15,7 +15,7 @@ No X API needed — it only sees what your logged-in browser already renders. Wo
 3. Turn on **Developer mode** (toggle, top right).
 4. Click **Load unpacked** and select the `reply-scout` folder.
 5. Click the Reply Scout icon (or the Settings link in the panel) to open settings:
-   - Paste your **Anthropic API key** (create one at console.anthropic.com → API keys) — or switch the provider to **Local** and point it at LM Studio instead.
+   - Paste your **Anthropic API key** (create one at console.anthropic.com → API keys) — or switch the provider to **Local** and point it at LM Studio or Ollama instead.
    - Edit the prefilled **thesis** and **rubric** until they're truly yours.
    - Paste 3–8 real writing samples into **Voice samples** — this is what makes drafts sound like you instead of like AI.
 6. Go to x.com. The panel appears top-right.
@@ -54,7 +54,11 @@ Configure what it looks for in settings → **Digest focus** (prefilled with a s
 
 ## Using a local model instead of the API
 
-Set provider to **Local** in settings and point it at your LM Studio server (defaults to `http://localhost:1234/v1`). Two model slots matter:
+Set provider to **Local** in settings and point it at your local server — anything with an OpenAI-compatible `/v1/chat/completions` endpoint works. LM Studio defaults to `http://localhost:1234/v1`; Ollama defaults to `http://localhost:11434/v1`.
+
+**Ollama users:** by default Ollama rejects requests from browser extension origins with a `403` — this isn't a Reply Scout bug, it's Ollama's own CORS allowlist. Start it with `OLLAMA_ORIGINS="chrome-extension://*" ollama serve` (or set that env var before `ollama serve` starts) to allow it.
+
+Two model slots matter:
 
 - **Scoring/drafting model** — reasoning models can quietly burn most of their token budget on hidden "thinking" before writing the actual answer, which shows up as truncated responses or drafts that ignore your rubric simply because there was no budget left to apply it. **gpt-oss-20b** has tested well here; the extension already sends `reasoning_effort: "low"` plus a generous token budget to keep this in check on models that support it.
 - **OCR model** (optional, for image-heavy posts) — a dedicated vision model transcribes images so your main model can stay text-only. **`allenai/olmOCR-2-7B-1025`** (document/screenshot-focused) or **`lmstudio-community/Qwen2-VL-2B-Instruct-GGUF`** (lighter, more general) both work; set it in settings → **OCR model for images**.
@@ -65,7 +69,7 @@ Set provider to **Local** in settings and point it at your LM Studio server (def
 - **Image alt text:** always on, free. If a post's photo has an author-provided alt/description, it's folded into the post's text before scoring — no image fetch, no cost, works with any model.
 - **Images:** off by default. Turn on **Include images when scoring** in settings to also process each post's own photo or video thumbnail (not quoted-tweet or link-preview images). What happens next depends on provider:
   - **Anthropic:** the image is sent directly to Claude as part of the scoring request.
-  - **Local, no OCR model set:** the image is sent directly to whatever model is loaded — it must support vision itself (e.g. Qwen2-VL, LLaVA), or LM Studio will error.
+  - **Local, no OCR model set:** the image is sent directly to whatever model is loaded — it must support vision itself (e.g. Qwen2-VL, LLaVA), or the server will error.
   - **Local, with an OCR model set:** the image is transcribed first by that dedicated model, and the extracted text is folded into the post like alt text — your main scoring model never needs vision support. Any model id containing "olmocr" automatically gets a tuned document-transcription prompt; everything else gets a simpler general-purpose describe/transcribe prompt.
   - **Not every image gets processed, even with the setting on.** Only posts with short text (under ~40 characters) trigger an image fetch — a substantial caption already gives the scorer enough. Video poster frames are always skipped. Each batch processes at most 6 images.
 - **Cost:** each scan is one small API call — typically a fraction of a cent with images off.
@@ -79,7 +83,7 @@ Set provider to **Local** in settings and point it at your LM Studio server (def
 
 - **Where it's active:** the panel only appears on `x.com/home` and individual List timelines (`x.com/i/lists/...`). It stays off on profile pages, single-post pages, search, and everywhere else.
 - **Ads:** promoted posts are detected and skipped before they're ever sent for scoring.
-- **Privacy:** your key and settings live in Chrome's local extension storage. Post text (and, if enabled, post images) is sent only to api.anthropic.com, or to your own local LM Studio server.
+- **Privacy:** your key and settings live in Chrome's local extension storage. Post text (and, if enabled, post images) is sent only to api.anthropic.com, or to your own local model server.
 - **X DOM changes:** X occasionally renames its internal markup. If scanning suddenly finds nothing, the selectors in `content.js` may need updating. With **Warn if X's layout seems to have changed** on (default), the panel surfaces this itself instead of silently finding nothing.
 - **Reply context:** when X shows a "Replying to @user" line above a reply surfaced in a feed/list, it's captured and included, so the scorer isn't judging a reply blind to what it's responding to.
 - **Backlog cap:** if local scoring can't keep up with how fast you're scrolling, the queue stops growing past 150 posts — the status line shows "backlog full," and unscored posts get reconsidered once it drains.

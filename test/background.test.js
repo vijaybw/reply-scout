@@ -276,7 +276,7 @@ test("draftLeaksSpecificPost: false when draft is null", () => {
 test("isSettingsError: flags the three config-related failure messages", () => {
   assert.equal(isSettingsError("No API key set. Open settings and paste your Anthropic API key, or switch provider to Local (LM Studio)."), true);
   assert.equal(isSettingsError("API key rejected (401). Check the key in settings."), true);
-  assert.equal(isSettingsError("Could not reach LM Studio at http://localhost:1234/v1. Is the server running?"), true);
+  assert.equal(isSettingsError("Could not reach a local model server at http://localhost:1234/v1. Is it running?"), true);
 });
 
 test("isSettingsError: does not flag transient/runtime errors", () => {

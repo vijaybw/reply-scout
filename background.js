@@ -97,7 +97,7 @@ function pushResult(tabId, type, requestId, payload) {
 // up" rather than a transient/runtime failure (timeout, rate limit, bad
 // parse) — content.js uses this to show an "Open Settings" button inline
 // instead of a plain warning the user can't act on directly.
-const SETTINGS_ERROR = /No API key set|API key rejected|Could not reach LM Studio/;
+const SETTINGS_ERROR = /No API key set|API key rejected|Could not reach a local model server/;
 function isSettingsError(msg) {
   return SETTINGS_ERROR.test(String(msg || ""));
 }
@@ -505,17 +505,31 @@ async function callLocalOnce(s, systemPrompt, userContent, modelOverride, maxTok
     );
   } catch (e) {
     if (e.name === "AbortError") {
-      throw new Error(`LM Studio didn't respond within ${LOCAL_TIMEOUT_MS / 1000}s — it may be stuck. Check LM Studio, or try a smaller batch.`);
+      throw new Error(`Local model server didn't respond within ${LOCAL_TIMEOUT_MS / 1000}s — it may be stuck. Check it's still running, or try a smaller batch.`);
     }
     throw new Error(
-      "Could not reach LM Studio at " + base +
-      ". Is the server running? In LM Studio: Developer tab → Start Server (port 1234) and enable CORS."
+      "Could not reach a local model server at " + base + ". Is it running? " +
+      "LM Studio: Developer tab → Start Server, enable CORS. " +
+      "Ollama: run it (default port 11434 — set the URL above to http://localhost:11434/v1)."
     );
   }
   if (!res.ok) {
     let detail = "";
     try { detail = (await res.json())?.error?.message || ""; } catch (_) {}
-    throw new Error(`LM Studio error ${res.status}. ${detail || "Check that a model is loaded."}`);
+    if (res.status === 403) {
+      // The single most common cause by far: the server itself is up and
+      // reachable, but rejects the request based on the browser's Origin
+      // header before it ever reaches model code -- not a real permission
+      // or auth problem. Ollama in particular only allows a fixed origin
+      // allowlist by default, which never includes a chrome-extension://
+      // origin unless explicitly added.
+      throw new Error(
+        `Local model server rejected the request (403) — almost always a CORS/origin block, not a real permission issue. ` +
+        `Ollama: restart it with an origin allowlist that includes browser extensions, e.g. OLLAMA_ORIGINS="chrome-extension://*" ollama serve. ` +
+        `LM Studio: turn on "Enable CORS" in the server settings.`
+      );
+    }
+    throw new Error(`Local model server error ${res.status}. ${detail || "Check that a model is loaded."}`);
   }
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content || "";
