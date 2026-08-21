@@ -337,6 +337,14 @@
   box-sizing: border-box;
 }
 
+.rs-char-count {
+  margin-top: 4px;
+  font-size: 11px;
+  text-align: right;
+  color: var(--text-3);
+}
+.rs-char-count.rs-over { color: var(--warn-text); font-weight: 600; }
+
 .rs-actions { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 8px; }
 
 .rs-btn {

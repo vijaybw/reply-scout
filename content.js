@@ -747,6 +747,7 @@
       ta.rows = 3;
       ta.value = digest.draft.text;
       card.appendChild(ta);
+      addCharCounter(card, ta);
 
       const row = document.createElement("div");
       row.className = "rs-actions";
@@ -929,6 +930,25 @@
     return "rs-score-low";
   }
 
+  // X's post limit is 280 characters. The system prompt asks the model to
+  // stay under it, but that's a request, not a guarantee — local models in
+  // particular have ignored it in practice. This is the backstop: always
+  // visible, updates live if the reply is edited, so an over-length draft
+  // is obvious before it's copied rather than discovered on X's own error.
+  const X_CHAR_LIMIT = 280;
+  function addCharCounter(container, textarea) {
+    const counter = document.createElement("div");
+    counter.className = "rs-char-count";
+    const update = () => {
+      const len = textarea.value.length;
+      counter.textContent = `${len} / ${X_CHAR_LIMIT}`;
+      counter.classList.toggle("rs-over", len > X_CHAR_LIMIT);
+    };
+    update();
+    textarea.addEventListener("input", update);
+    container.appendChild(counter);
+  }
+
   function renderResults(posts, results, append) {
     const byId = Object.fromEntries(posts.map((p) => [p.id, p]));
     const sorted = [...results].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
@@ -961,6 +981,7 @@
         ta.value = r.reply;
         ta.rows = 3;
         card.appendChild(ta);
+        addCharCounter(card, ta);
 
         const row = document.createElement("div");
         row.className = "rs-actions";
