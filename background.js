@@ -182,7 +182,7 @@ function buildVoiceAndTellsSection(s) {
 // just as likely to invent a detail about the user's team — same parity gap,
 // different rule.
 function buildFactInventionRule() {
-  return "Never invent facts, numbers, outcomes, or specifics about the user's own team, process, or organization (e.g. \"our internal review process\", \"we cut this by 40%\", \"our on-call overhead\", \"our event-driven services\", \"the manual tuning loop that currently dominates our pipeline\") — you have no knowledge of these, even if the voice samples show the user confidently discussing their own real work elsewhere. That confident tone is something to imitate; the specific claims inside it are not — the samples show you HOW the user sounds when they know something firsthand, not WHAT is currently true about their operations. If you don't have a real specific to reference, engage with the post's own content and general expertise instead of manufacturing an equivalent-sounding detail about the user's team to fill the gap.";
+  return "Never invent facts, numbers, outcomes, or specifics about the user's own team, process, or organization (e.g. \"our internal review process\", \"we cut this by 40%\", \"our on-call overhead\", \"our event-driven services\", \"the manual tuning loop that currently dominates our pipeline\") — you have no knowledge of these, even if the voice samples show the user confidently discussing their own real work elsewhere. That confident tone is something to imitate; the specific claims inside it are not — the samples show you HOW the user sounds when they know something firsthand, not WHAT is currently true about their operations. This applies just as much to the SUBJECT of the post: never invent specific numbers, dates, dollar figures, percentages, mechanisms, or outcomes about the topic being discussed (a trial result, a cost figure, a technical process) unless that specific number or detail already appears in the post you're replying to. A confident, specific-sounding reply built on a fabricated statistic is worse than a vaguer, honest one. If you don't have a real specific to reference, engage with the post's own stated content and general expertise instead of manufacturing an equivalent-sounding detail to fill the gap.";
 }
 
 function buildSystemPrompt(s, hasImages, hasAnnotations) {
@@ -624,7 +624,20 @@ async function scorePosts(posts) {
   // and occasionally returning empty content otherwise. "low" effort keeps
   // it from over-thinking a style-constrained scoring/drafting task.
   const text = await callModel(s, systemPrompt, userContent, { maxTokens: 3500, reasoningEffort: "low" });
-  return parseResults(text);
+  const results = parseResults(text);
+
+  // Same fabrication backstop the digest path uses, applied per-post here:
+  // a reply citing a specific figure that isn't anywhere in the post it's
+  // replying to is very likely invented, so drop just that reply rather
+  // than the whole batch's score/reason (which are still useful even
+  // without a draft).
+  const postTextById = Object.fromEntries(posts.map((p) => [p.id, p.text]));
+  for (const r of results) {
+    if (r.reply && draftInventsExternalStats(r.reply, postTextById[r.id])) {
+      r.reply = null;
+    }
+  }
+  return results;
 }
 
 // ---------- digest ----------
@@ -813,6 +826,40 @@ function draftInventsOwnWork(draft) {
   return OWN_WORK_CLAIM.test(draft.text || "") || OWN_WORK_CLAIM.test(draft.why || "");
 }
 
+// Backstop for the "never invent third-party specifics" half of
+// buildFactInventionRule() above -- observed in practice on a scoring reply
+// about cancer vaccines that confidently cited a "~2000 driver mutation"
+// sequencing panel, a specific survival-time jump, a manufacturing
+// timeline, and a cost-per-dose trajectory, none of which were in the post
+// it was replying to and none of which check out against real reporting on
+// the subject. A confident, specific-looking number (a percentage, a
+// dollar figure, a duration, a raw count) about the post's subject matter
+// is a strong tell of fabrication when that exact figure doesn't appear
+// anywhere in the post being replied to -- the model has no way to
+// actually know a real number for someone else's clinical trial, product,
+// or research. This checks PROVENANCE, not truth: a number that happens to
+// be real but wasn't stated in the source post still gets flagged, and
+// that's the right tradeoff here -- better to drop an occasional
+// true-but-unsourced detail than ship a fabricated statistic under the
+// user's name.
+const NUMERIC_CLAIM = /\$?\d[\d,]*\.?\d*\s*(?:%|k\b|weeks?|months?|years?|days?)?/gi;
+function extractNumericClaims(text) {
+  if (!text) return [];
+  // Strips thousands-separator commas (so "2,000" and "2000" normalize to
+  // the same token) along with whitespace and any trailing punctuation the
+  // greedy comma-match can pick up (e.g. "2022," at the end of a clause).
+  return (text.match(NUMERIC_CLAIM) || [])
+    .map((m) => m.toLowerCase().replace(/,/g, "").replace(/\s+/g, ""))
+    .filter((m) => /\d/.test(m));
+}
+function draftInventsExternalStats(replyText, sourceText) {
+  if (!replyText) return false;
+  const claimed = extractNumericClaims(replyText);
+  if (claimed.length === 0) return false;
+  const sourceNums = new Set(extractNumericClaims(sourceText));
+  return claimed.some((n) => !sourceNums.has(n));
+}
+
 // Loads the "already digested" url -> timestamp map, dropping anything older
 // than DIGEST_HISTORY_DAYS so it doesn't grow forever or exclude things
 // you'd reasonably want to see again after a few days.
@@ -913,29 +960,44 @@ async function generateDigest(posts, requestId, tabId) {
   // a specific person without linking their tweet), or invent a specific
   // about the user's own team/work. One retry with a sharper, targeted nudge
   // is enough in practice — cheaper than shipping any of these three.
+  // For a "reply" draft, the post it's replying to is the only legitimate
+  // source of any specific figure it cites — used by draftInventsExternalStats
+  // below to catch the same kind of fabrication scorePosts() guards against.
+  const draftSourceText = (d) => {
+    if (!d || d.type !== "reply" || !d.url) return "";
+    const post = candidates.find((p) => p.url === d.url);
+    return post ? post.text : "";
+  };
+
   const leaked = draftLeaksSpecificPost(digest.draft, candidates);
   const invents = draftInventsOwnWork(digest.draft);
-  if (!digest.draft || leaked || invents) {
+  const inventedStats = !!digest.draft && draftInventsExternalStats(digest.draft.text, draftSourceText(digest.draft));
+  if (!digest.draft || leaked || invents || inventedStats) {
     try {
       const nudge = leaked
         ? "\n\nYour previous \"draft\" was type \"post\" but named or paraphrased a specific person's post — that makes it a reply, not a standalone post. Fix it: either set type to \"reply\" with that post's url (and add that post to items so it's visible), or rewrite it as a truly standalone idea with no reference to anyone specific."
         : invents
         ? "\n\nYour previous \"draft\" claimed something specific about your own team, product, or process (\"our own X\", \"we've used/built/found...\", \"in my own work...\"). You have no knowledge of the user's actual current work, so that claim is always a rule violation, true or not. Rewrite draft.text to engage with the post's own content and general expertise instead — zero claims about your own team, product, or process."
+        : inventedStats
+        ? "\n\nYour previous \"draft\" cited a specific number, date, dollar figure, or percentage about the post's subject matter that did not appear in the post itself — you have no way to know a real figure for someone else's research, product, or trial, so that's a fabrication regardless of whether it happens to be true. Rewrite draft.text without inventing any statistic; engage with only what the post itself actually said."
         : "\n\nYour previous response omitted \"draft\", which is mandatory. Re-read the draft rules above and include a real one this time — pick a reply or standalone post, it does not need to be perfect.";
       const retrySystemPrompt = systemPrompt + nudge;
       const retryText = await callModel(s, retrySystemPrompt, userContent, { maxTokens: DIGEST_MAX_TOKENS, reasoningEffort: "low" });
       const retryDigest = parseDigestResult(retryText, validUrls);
-      const retryBad = draftLeaksSpecificPost(retryDigest.draft, candidates) || draftInventsOwnWork(retryDigest.draft);
+      const retryBad =
+        draftLeaksSpecificPost(retryDigest.draft, candidates) ||
+        draftInventsOwnWork(retryDigest.draft) ||
+        (!!retryDigest.draft && draftInventsExternalStats(retryDigest.draft.text, draftSourceText(retryDigest.draft)));
       if (retryDigest.draft && !retryBad) {
         digest = {
           items: retryDigest.items.length ? retryDigest.items : digest.items,
           draft: retryDigest.draft,
         };
-      } else if (leaked || invents) {
+      } else if (leaked || invents || inventedStats) {
         digest = { items: digest.items, draft: null }; // still bad (or nothing usable) — drop it rather than ship it
       }
     } catch (_) {
-      if (leaked || invents) digest = { items: digest.items, draft: null };
+      if (leaked || invents || inventedStats) digest = { items: digest.items, draft: null };
       // otherwise leave digest.draft null — better to show a digest without one than to fail it entirely
     }
   }
@@ -958,6 +1020,8 @@ if (typeof module !== "undefined" && module.exports) {
     parseDigestResult,
     draftLeaksSpecificPost,
     draftInventsOwnWork,
+    draftInventsExternalStats,
+    extractNumericClaims,
     isSettingsError,
     looksLikeGarbageOcr,
     extractOcrText,

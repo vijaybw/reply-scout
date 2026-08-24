@@ -27,6 +27,8 @@ const {
   parseDigestResult,
   draftLeaksSpecificPost,
   draftInventsOwnWork,
+  draftInventsExternalStats,
+  extractNumericClaims,
   isSettingsError,
   looksLikeGarbageOcr,
   buildSystemPrompt,
@@ -335,6 +337,41 @@ test("draftInventsOwnWork: false for a reply grounded only in the post's own con
 test("draftInventsOwnWork: false when draft is null or has no text", () => {
   assert.equal(draftInventsOwnWork(null), false);
   assert.equal(draftInventsOwnWork({ type: "post" }), false);
+});
+
+test("draftInventsExternalStats: true for real observed fabrication (invented trial/cost figures)", () => {
+  // Regression: a scoring reply about a cancer-vaccine post confidently
+  // cited a "~2000 driver mutation" sequencing panel, a specific
+  // progression-free-survival jump, a manufacturing timeline, and a
+  // cost-per-dose trajectory -- none of which appeared in the post it was
+  // replying to, and none of which held up against real reporting.
+  const post = "The newer generation cancer vaccines aren't like the HPV shot. These are therapeutic, they treat cancer you already have.";
+  const reply =
+    "The key is the post-surgery sequencing step: a panel capturing ~2000 driver mutations. " +
+    "Median progression-free survival jumped from 6 months with standard chemo to 14 months. " +
+    "Each patient's library takes ~4 weeks to synthesize, and cost per dose has dropped from $10k in 2022 to about $3.5k now.";
+  assert.equal(draftInventsExternalStats(reply, post), true);
+});
+
+test("draftInventsExternalStats: false when the reply only cites numbers already in the post", () => {
+  const post = "We cut our p95 latency from 400ms to 120ms after switching to a connection pool.";
+  const reply = "Going from 400ms to 120ms is a big win -- did the connection pool change help with tail latency too?";
+  assert.equal(draftInventsExternalStats(reply, post), false);
+});
+
+test("draftInventsExternalStats: false when the reply has no numbers at all", () => {
+  const post = "Some post with no numbers in it.";
+  const reply = "Interesting point, though I'd push back on the framing a little.";
+  assert.equal(draftInventsExternalStats(reply, post), false);
+});
+
+test("draftInventsExternalStats: false when reply or source is missing", () => {
+  assert.equal(draftInventsExternalStats("", "anything"), false);
+  assert.equal(draftInventsExternalStats(null, "anything"), false);
+});
+
+test("extractNumericClaims: normalizes matching figures regardless of spacing/case", () => {
+  assert.deepEqual(extractNumericClaims("$10k in 2022, then 14 Months later"), ["$10k", "2022", "14months"]);
 });
 
 test("looksLikeGarbageOcr: true for coordinate-only grounding output", () => {
